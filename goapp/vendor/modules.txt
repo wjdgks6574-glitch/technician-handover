@@ -1,0 +1,14 @@
+# github.com/jchv/go-webview2 v0.0.0-20221223143126-dc24628cff85
+## explicit; go 1.22
+github.com/jchv/go-webview2
+github.com/jchv/go-webview2/internal/w32
+github.com/jchv/go-webview2/pkg/edge
+github.com/jchv/go-webview2/webviewloader
+# github.com/jchv/go-winloader v0.0.0-20250406163304-c1995be93bd1
+## explicit; go 1.22
+github.com/jchv/go-winloader
+github.com/jchv/go-winloader/internal/pe
+github.com/jchv/go-winloader/internal/vmem
+# golang.org/x/sys v0.0.0-20210218145245-beda7e5e158e
+## explicit; go 1.22
+golang.org/x/sys/windows

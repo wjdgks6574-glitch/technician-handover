@@ -1,0 +1,975 @@
+package main
+
+import (
+	_ "embed"
+	"encoding/json"
+	"fmt"
+	"log"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+	"syscall"
+	"time"
+	"unsafe"
+
+	webview "github.com/jchv/go-webview2"
+)
+
+//go:embed initial_data_v142.json
+var initialDataJSON []byte
+
+type Record struct {
+	ID       int    `json:"id"`
+	Date     string `json:"date"`
+	Equip    string `json:"equip"`
+	Worker   string `json:"worker"`
+	Category string `json:"category"`
+	Content  string `json:"content"`
+	Dong     string `json:"dong"`
+}
+
+var dataFile string    // 네트워크 주 저장소 경로
+var cacheFile string   // 로컬 안전망 (네트워크 접근 실패 시에만 사용)
+var records []Record
+var w webview.WebView
+var networkOK bool
+var lastNetErr string
+
+func getDataDir() string {
+	appData := os.Getenv("APPDATA")
+	if appData == "" {
+		home, _ := os.UserHomeDir()
+		appData = home
+	}
+	dir := filepath.Join(appData, "인수인계관리")
+	os.MkdirAll(dir, 0755)
+	return dir
+}
+
+func getNetworkDir() string {
+	return `\\172.23.11.175\ETC_JC_BergerHalm\인수인계관리_DB`
+}
+
+// readWithTimeout은 파일 읽기가 오래 걸릴 때(예: 네트워크 서버 다운으로
+// 인한 SMB 타임아웃) 프로그램이 멈추지 않도록 지정된 시간(초) 안에
+// 끝나지 않으면 포기하고 nil을 반환한다.
+func readWithTimeout(path string, seconds int) []Record {
+	type result struct{ rs []Record }
+	ch := make(chan result, 1)
+	go func() {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			lastNetErr = "읽기 실패: " + err.Error()
+			ch <- result{nil}
+			return
+		}
+		var rs []Record
+		if err := json.Unmarshal(data, &rs); err != nil {
+			lastNetErr = "데이터 형식 오류: " + err.Error()
+			ch <- result{nil}
+			return
+		}
+		lastNetErr = ""
+		ch <- result{rs}
+	}()
+	select {
+	case r := <-ch:
+		return r.rs
+	case <-time.After(time.Duration(seconds) * time.Second):
+		lastNetErr = fmt.Sprintf("응답 없음 (%d초 초과) - 서버가 꺼져있거나 경로에 접근할 수 없습니다", seconds)
+		return nil
+	}
+}
+
+// writeWithTimeout은 네트워크 쓰기가 오래 걸릴 때 프로그램이 멈추지
+// 않도록 지정된 시간(초) 안에 끝나지 않으면 실패로 처리한다.
+func writeWithTimeout(path string, rs []Record, seconds int) bool {
+	ch := make(chan bool, 1)
+	go func() {
+		data, err := json.MarshalIndent(rs, "", "  ")
+		if err != nil {
+			lastNetErr = "직렬화 오류: " + err.Error()
+			ch <- false
+			return
+		}
+		dir := filepath.Dir(path)
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			lastNetErr = "폴더 생성 실패: " + err.Error()
+			ch <- false
+			return
+		}
+		tmp := path + ".tmp"
+		if err := os.WriteFile(tmp, data, 0644); err != nil {
+			lastNetErr = "파일 쓰기 실패: " + err.Error()
+			ch <- false
+			return
+		}
+		if err := os.Rename(tmp, path); err != nil {
+			lastNetErr = "파일 이름변경 실패: " + err.Error()
+			ch <- false
+			return
+		}
+		lastNetErr = ""
+		ch <- true
+	}()
+	select {
+	case ok := <-ch:
+		return ok
+	case <-time.After(time.Duration(seconds) * time.Second):
+		lastNetErr = fmt.Sprintf("응답 없음 (%d초 초과) - 서버가 꺼져있거나 경로에 접근할 수 없습니다", seconds)
+		return false
+	}
+}
+
+// migrateEquipNames는 예전에 "ATW#XX"로 저장되던 설비명을
+// "#XX"로 통일한다 (ATW#61은 예외로 그대로 유지).
+// 기존에 저장된 네트워크/로컬 파일의 데이터도 이 규칙으로 정리한다.
+var equipRenameMap = map[string]string{
+	"ATW#21": "#21",
+	"ATW#22": "#22",
+	"ATW#31": "#31",
+	"ATW#32": "#32",
+	"ATW#41": "#41",
+	"ATW#42": "#42",
+	"ATW#51": "#51",
+	"ATW#52": "#52",
+}
+
+func migrateEquipNames(rs []Record) ([]Record, bool) {
+	changed := false
+	for i := range rs {
+		if newName, ok := equipRenameMap[rs[i].Equip]; ok {
+			rs[i].Equip = newName
+			changed = true
+		}
+	}
+	return rs, changed
+}
+
+func loadRecords() {
+	dataFile = filepath.Join(getNetworkDir(), "records.json")
+	cacheFile = filepath.Join(getDataDir(), "records_local_backup.json")
+
+	// 1순위: 네트워크 파일 (5초 타임아웃)
+	netRecords := readWithTimeout(dataFile, 5)
+	if netRecords != nil {
+		records = netRecords
+		networkOK = true
+		if migrated, changed := migrateEquipNames(records); changed {
+			records = migrated
+			saveRecords()
+			return
+		}
+		// 로컬에 안전망 백업 (네트워크 다운 시 대비)
+		writeWithTimeout(cacheFile, records, 3)
+		return
+	}
+	networkOK = false
+
+	// 2순위: 네트워크 접근 실패 시 → 로컬 백업본
+	localRecords := readWithTimeout(cacheFile, 3)
+	if localRecords != nil {
+		records = localRecords
+		if migrated, changed := migrateEquipNames(records); changed {
+			records = migrated
+			writeWithTimeout(cacheFile, records, 3)
+		}
+		return
+	}
+
+	// 3순위: 로컬 백업도 없으면 → 프로그램 내장 초기 데이터
+	var initial []Record
+	if jerr := json.Unmarshal(initialDataJSON, &initial); jerr == nil {
+		records = initial
+	} else {
+		records = []Record{}
+	}
+}
+
+func saveRecords() {
+	ok := writeWithTimeout(dataFile, records, 5)
+	networkOK = ok
+	// 네트워크 저장 성공 여부와 관계없이 로컬 안전망은 항상 갱신
+	writeWithTimeout(cacheFile, records, 3)
+}
+
+func nextID() int {
+	max := 0
+	for _, r := range records {
+		if r.ID > max {
+			max = r.ID
+		}
+	}
+	return max + 1
+}
+
+func toJSON(v interface{}) string {
+	b, _ := json.Marshal(v)
+	return string(b)
+}
+
+func handleBind(w webview.WebView) {
+	w.Bind("dbGetAll", func() string {
+		status := "네트워크 저장소 연결됨"
+		if !networkOK {
+			status = "⚠ 네트워크 연결 안됨 - 로컬 백업본 사용 중"
+		}
+		return toJSON(map[string]interface{}{
+			"records": records,
+			"network": dataFile,
+			"backup":  cacheFile,
+			"status":  status,
+			"error":   lastNetErr,
+		})
+	})
+
+	w.Bind("dbAdd", func(date, equip, worker, category, content, dong string) string {
+		r := Record{
+			ID:       nextID(),
+			Date:     strings.TrimSpace(date),
+			Equip:    strings.TrimSpace(equip),
+			Worker:   strings.TrimSpace(worker),
+			Category: strings.TrimSpace(category),
+			Content:  strings.TrimSpace(content),
+			Dong:     strings.TrimSpace(dong),
+		}
+		records = append(records, r)
+		saveRecords()
+		return toJSON(r)
+	})
+
+	w.Bind("dbUpdate", func(id int, date, equip, worker, category, content, dong string) bool {
+		for i := range records {
+			if records[i].ID == id {
+				records[i].Date = strings.TrimSpace(date)
+				records[i].Equip = strings.TrimSpace(equip)
+				records[i].Worker = strings.TrimSpace(worker)
+				records[i].Category = strings.TrimSpace(category)
+				records[i].Content = strings.TrimSpace(content)
+				records[i].Dong = strings.TrimSpace(dong)
+				saveRecords()
+				return true
+			}
+		}
+		return false
+	})
+
+	w.Bind("dbDelete", func(id int) bool {
+		for i := range records {
+			if records[i].ID == id {
+				records = append(records[:i], records[i+1:]...)
+				saveRecords()
+				return true
+			}
+		}
+		return false
+	})
+
+	w.Bind("dbGetPath", func() string {
+		status := "네트워크 저장소 연결됨"
+		if !networkOK {
+			status = "⚠ 네트워크 연결 안됨 - 로컬 백업본 사용 중"
+		}
+		return toJSON(map[string]string{
+			"network": dataFile,
+			"backup":  cacheFile,
+			"status":  status,
+			"error":   lastNetErr,
+		})
+	})
+
+	w.Bind("openPartsFile_go", func() string {
+		return openPartsFileImpl()
+	})
+}
+
+func openPartsFileImpl() string {
+	dir := `\\172.23.11.175\ETC_JC_BergerHalm\1동\Pending Item&지속관리`
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return "ERR:폴더를 찾을 수 없습니다 (" + err.Error() + ")"
+	}
+	var target string
+	for _, e := range entries {
+		name := e.Name()
+		if strings.HasPrefix(name, "~$") {
+			continue
+		}
+		if strings.Contains(name, "JC_1 Sorter 필요 Parts") &&
+			(strings.HasSuffix(name, ".xlsx") || strings.HasSuffix(name, ".xls") || strings.HasSuffix(name, ".xlsb")) {
+			target = filepath.Join(dir, name)
+			break
+		}
+	}
+	if target == "" {
+		return "ERR:파일을 찾을 수 없습니다"
+	}
+	cmd := exec.Command("cmd", "/C", "start", "", target)
+	if err := cmd.Start(); err != nil {
+		return "ERR:파일 열기 실패 (" + err.Error() + ")"
+	}
+	return "OK:" + target
+}
+
+const (
+	SW_MAXIMIZE = 3
+)
+
+func maximizeWindow(hwnd unsafe.Pointer) {
+	user32 := syscall.NewLazyDLL("user32.dll")
+	showWindow := user32.NewProc("ShowWindow")
+	showWindow.Call(uintptr(hwnd), uintptr(SW_MAXIMIZE))
+}
+
+func main() {
+	loadRecords()
+
+	w = webview.NewWithOptions(webview.WebViewOptions{
+		Debug: false,
+		WindowOptions: webview.WindowOptions{
+			Title:  "인수인계 관리",
+			Width:  1280,
+			Height: 800,
+			Center: true,
+		},
+	})
+	if w == nil {
+		log.Fatal("WebView2 초기화 실패. Windows 10/11이 필요합니다.")
+	}
+	defer w.Destroy()
+
+	w.SetTitle("📋 인수인계 관리")
+
+	go func() {
+		time.Sleep(300 * time.Millisecond)
+		maximizeWindow(w.Window())
+	}()
+
+	handleBind(w)
+	w.SetHtml(buildHTML())
+	w.Run()
+}
+
+var _ = unsafe.Pointer(nil)
+
+func buildHTML() string {
+	return fmt.Sprintf(`<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>인수인계 관리</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'맑은 고딕',sans-serif;background:#f0f4f8;color:#1a202c;font-size:13px;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+.topbar{background:#1e3a5f;color:#fff;display:flex;align-items:center;padding:0 16px;height:50px;flex-shrink:0;gap:10px}
+.topbar h1{font-size:15px;font-weight:600}
+.badge{font-size:11px;color:#90cdf4;background:rgba(255,255,255,0.15);padding:2px 10px;border-radius:99px}
+.spacer{flex:1}
+.btn{padding:5px 14px;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-family:'맑은 고딕',sans-serif;font-weight:600}
+.btn-new{background:#3b82f6;color:#fff}.btn-new:hover{background:#2563eb}
+.btn-csv{background:#059669;color:#fff;margin-left:4px}.btn-csv:hover{background:#047857}
+.btn-parts{background:#7c3aed;color:#fff;padding:5px 12px;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-family:'맑은 고딕',sans-serif;font-weight:600;white-space:nowrap}.btn-parts:hover{background:#6d28d9}
+.main{display:flex;flex:1;overflow:hidden;gap:8px;padding:8px}
+.left{display:flex;flex-direction:column;flex:1;background:#fff;border-radius:10px;overflow:hidden;border:1px solid #e2e8f0}
+.searchbar{padding:10px 12px;border-bottom:1px solid #e2e8f0;display:flex;gap:8px;align-items:center;background:#f8fafc}
+.sw{position:relative}
+.sw input{width:160px;padding:6px 10px;border:1px solid #cbd5e0;border-radius:6px;font-size:12px;font-family:'맑은 고딕',sans-serif;background:#fff}
+select{padding:6px 8px;border:1px solid #cbd5e0;border-radius:6px;font-size:12px;font-family:'맑은 고딕',sans-serif;background:#fff;cursor:pointer}
+.ms-wrap{position:relative}
+.ms-trigger{padding:6px 10px;border:1px solid #cbd5e0;border-radius:6px;font-size:12px;font-family:'맑은 고딕',sans-serif;background:#fff;cursor:pointer;white-space:nowrap;min-width:90px;text-align:left}
+.ms-trigger.active{border-color:#3b82f6;background:#eff6ff;color:#1d4ed8}
+.ms-panel{display:none;position:absolute;top:calc(100% + 4px);left:0;background:#fff;border:1px solid #cbd5e0;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.12);z-index:50;min-width:180px;max-height:320px;overflow-y:auto;padding:6px}
+.ms-panel.open{display:block}
+.ms-item{display:flex;align-items:center;gap:7px;padding:6px 8px;border-radius:5px;cursor:pointer;font-size:12px}
+.ms-item:hover{background:#f0f4f8}
+.ms-item input{cursor:pointer}
+.ms-footer{display:flex;gap:6px;padding:6px 4px 2px;border-top:1px solid #f0f4f8;margin-top:4px}
+.ms-footer button{flex:1;padding:5px;border:1px solid #cbd5e0;border-radius:5px;background:#fff;font-size:11px;cursor:pointer;font-family:'맑은 고딕',sans-serif}
+.ms-footer button:hover{background:#f0f4f8}
+.cntbar{padding:4px 12px;font-size:11px;color:#718096;border-bottom:1px solid #f0f4f8;background:#f8fafc}
+.tw{flex:1;overflow-y:auto;overflow-x:hidden}
+.fhead{display:flex;background:#edf2f7;border-bottom:2px solid #cbd5e0;position:sticky;top:0;z-index:1}
+.fhead .fc{padding:8px 10px;text-align:center;font-size:12px;font-weight:600;color:#2d3748}
+.th-l{text-align:left!important}
+.frow{display:flex;border-bottom:1px solid #f0f4f8;cursor:pointer;transition:background .1s}
+.frow:hover{background:#ebf8ff}
+.frow.sel{background:#bee3f8}
+.fc{padding:8px 10px;font-size:12px;display:flex;align-items:center;justify-content:center;min-width:0}
+.fc-dong{flex:0 0 52px;width:52px}
+.dong-badge{font-size:10px;color:#2d4a7a;background:#e8edf4;padding:2px 6px;border-radius:4px;font-weight:600}
+.fc-d{flex:0 0 68px;width:68px;color:#4a5568;white-space:nowrap}
+.fc-e{flex:0 0 60px;width:60px}
+.fc-w{flex:0 0 88px;width:88px;color:#4a5568;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fc-c{flex:0 0 96px;width:96px}
+.fc-ct{flex:1 1 auto;min-width:0;justify-content:flex-start;align-items:flex-start}
+.fc-ct .pv{white-space:pre-wrap;max-height:146px;overflow:hidden;line-height:1.5;word-break:break-all;width:100%}
+.chip{display:inline-block;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:600}
+.c설비이슈{background:#bee3f8;color:#2b6cb0}
+.c전달사항{background:#fefcbf;color:#744210}
+.c기자재관리{background:#c6f6d5;color:#276749}
+.cClassification{background:#fed7aa;color:#7b341e}
+.eb{display:inline-block;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:600}
+.right{display:flex;flex-direction:column;width:270px;flex-shrink:0;gap:8px}
+.memo-card{width:250px;flex-shrink:0;background:#fffaf0;border:1px solid #f6ad55;border-radius:10px;display:flex;flex-direction:column;overflow:hidden}
+.memo-hdr{background:#dd7c1e;color:#fff;padding:8px 12px;font-size:12px;font-weight:600}
+#memo-text{flex:1;width:100%;border:none;background:transparent;resize:none;padding:12px;font-family:'맑은 고딕',sans-serif;font-size:12px;line-height:1.6;outline:none;color:#5a4a3a}
+.memo-footer{padding:4px 12px 8px;font-size:10px;color:#c08a4a;text-align:right}
+.card{background:#fff;border-radius:10px;border:1px solid #e2e8f0;overflow:hidden}
+.cal-nav{background:#1e3a5f;color:#fff;display:flex;align-items:center;padding:6px 10px}
+.cal-nav button{background:none;border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:4px;width:24px;height:24px;cursor:pointer;font-size:12px}
+.cal-nav button:hover{background:rgba(255,255,255,.15)}
+.cal-nav span{flex:1;text-align:center;font-size:13px;font-weight:600}
+.dow{display:grid;grid-template-columns:repeat(7,1fr);padding:4px 6px 0;gap:2px}
+.dow span{text-align:center;font-size:10px;color:#718096;padding:2px 0}
+.days{display:grid;grid-template-columns:repeat(7,1fr);padding:2px 6px 8px;gap:2px}
+.day{text-align:center;padding:3px 0;font-size:12px;border-radius:5px;cursor:pointer;color:#4a5568;position:relative;user-select:none}
+.day:hover{background:#ebf8ff}
+.day.hd{font-weight:700;color:#2b6cb0}
+.day.hd::after{content:'';position:absolute;bottom:1px;left:50%;transform:translateX(-50%);width:4px;height:4px;border-radius:50%;background:#3b82f6}
+.day.sd{background:#3b82f6;color:#fff}.day.sd::after{background:#fff}
+.day.td2{color:#e53e3e;font-weight:700}
+.day.em{cursor:default}.day.em:hover{background:none}
+.det-card{background:#fff;border-radius:10px;border:1px solid #e2e8f0;flex:1;overflow:hidden;display:flex;flex-direction:column}
+.det-hdr{background:#1e3a5f;color:#fff;padding:8px 12px;font-size:12px;font-weight:600;flex-shrink:0}
+.det-body{flex:1;overflow-y:auto;padding:6px}
+.di{background:#f8fafc;border-radius:6px;margin-bottom:6px;overflow:hidden;border:1px solid #e2e8f0}
+.di-h{display:flex;align-items:center;gap:5px;padding:5px 8px;flex-wrap:wrap}
+.di-b{padding:6px 8px;font-size:11px;color:#4a5568;line-height:1.6;white-space:pre-wrap;word-break:break-all}
+.es{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:#a0aec0;gap:6px;text-align:center;font-size:12px;line-height:1.6}
+.mbg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100;align-items:center;justify-content:center}
+.mbg.open{display:flex}
+.modal{background:#fff;border-radius:12px;padding:22px;width:500px;max-width:95vw;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.modal h2{font-size:15px;font-weight:600;margin-bottom:16px;color:#1e3a5f}
+.fr{display:flex;flex-direction:column;gap:4px;margin-bottom:12px}
+.fr label{font-size:11px;color:#718096;font-weight:600}
+.fr input,.fr select,.fr textarea{padding:7px 10px;border:1px solid #cbd5e0;border-radius:6px;font-size:12px;font-family:'맑은 고딕',sans-serif;background:#f8fafc}
+.fr input:focus,.fr select:focus,.fr textarea:focus{outline:none;border-color:#3b82f6;background:#fff}
+.fr textarea{height:110px;resize:vertical;line-height:1.6}
+.fg{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.mf{display:flex;justify-content:flex-end;gap:8px;margin-top:8px}
+.bc{padding:7px 16px;background:#f0f4f8;border:1px solid #cbd5e0;border-radius:6px;cursor:pointer;font-size:12px;font-family:'맑은 고딕',sans-serif}
+.bs{padding:7px 16px;background:#3b82f6;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-family:'맑은 고딕',sans-serif;font-weight:600}
+.bc:hover{background:#e2e8f0}.bs:hover{background:#2563eb}
+.ctx{display:none;position:fixed;background:#fff;border:1px solid #e2e8f0;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.15);z-index:200;min-width:140px;overflow:hidden}
+.ctx.open{display:block}
+.ci{padding:9px 16px;cursor:pointer;font-size:12px;color:#2d3748}
+.ci:hover{background:#ebf8ff;color:#2b6cb0}
+.ci.del:hover{background:#fff5f5;color:#e53e3e}
+.sep{height:1px;background:#e2e8f0;margin:2px 0}
+mark{background:#fef08a;border-radius:2px}
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{background:#f0f4f8}
+::-webkit-scrollbar-thumb{background:#cbd5e0;border-radius:3px}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <h1>📋 인수인계 관리 [JC01]</h1><span style="font-size:10px;color:#64b5f6;background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:4px;font-weight:400;letter-spacing:0.5px">v1.4.12</span>
+  <span class="badge" id="tbadge">0건</span>
+  <span id="netbadge" onclick="showNetInfo()" style="font-size:11px;padding:2px 8px;border-radius:99px;cursor:pointer;color:#f87171" title="확인 중...">●</span>
+  <div class="spacer"></div>
+  <button class="btn btn-new" onclick="openModal()">＋ 새 항목</button>
+  <button class="btn btn-csv" onclick="exportCSV()">⬆ CSV 내보내기</button>
+</div>
+<div class="main">
+  <div class="left">
+    <div class="searchbar">
+      <div class="sw"><input type="text" id="q" placeholder="내용, 설비, 근무자 검색..." oninput="applyFilter()"></div>
+      <select id="fD" onchange="dongChanged()" style="font-weight:600;color:#2d4a7a">
+        <option value="">전체 동</option>
+        <option value="JC01" selected>JC01</option>
+        <option value="JC02">JC02</option>
+      </select>
+      <div class="ms-wrap" id="equip-ms-wrap">
+        <button type="button" class="ms-trigger" id="equip-ms-trigger" onclick="toggleEquipMS()">설비 ▾</button>
+        <div class="ms-panel" id="equip-ms-panel"></div>
+      </div>
+      <select id="fC" onchange="applyFilter()">
+        <option value="">구분</option>
+        <option>설비이슈</option><option>전달사항</option>
+        <option>기자재관리</option><option>Classification</option>
+      </select>
+      <button class="btn btn-parts" onclick="openPartsFile()">📋 파트 요청 리스트</button>
+    </div>
+    <div class="cntbar" id="cntbar"></div>
+    <div class="tw">
+      <div class="fhead">
+        <div class="fc fc-dong">동</div><div class="fc fc-d">날짜</div><div class="fc fc-e">설비</div>
+        <div class="fc fc-w">근무자</div><div class="fc fc-c">구분</div><div class="fc fc-ct th-l">내용</div>
+      </div>
+      <div id="tb"></div>
+    </div>
+  </div>
+  <div class="memo-card">
+    <div class="memo-hdr">📝 메모</div>
+    <textarea id="memo-text" placeholder="자유롭게 메모하세요..." oninput="saveMemo()"></textarea>
+    <div class="memo-footer" id="memo-saved"></div>
+  </div>
+  <div class="right">
+    <div class="card">
+      <div class="cal-nav">
+        <button onclick="chM(-1)">◀</button>
+        <span id="ctitle"></span>
+        <button onclick="chM(1)">▶</button>
+      </div>
+      <div class="dow"><span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span></div>
+      <div class="days" id="days"></div>
+    </div>
+    <div class="det-card">
+      <div class="det-hdr" id="dhdr">날짜를 선택하세요</div>
+      <div class="det-body" id="dbody">
+        <div class="es">📅<br>달력에서 날짜를 클릭하면<br>해당일 내용이 표시됩니다</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="mbg" id="mbg" onclick="bgClick(event)">
+  <div class="modal">
+    <h2 id="mtitle">새 항목 추가</h2>
+    <div class="fg">
+      <div class="fr"><label>동</label>
+        <select id="fdong">
+          <option value="JC01">JC01</option>
+          <option value="JC02">JC02</option>
+        </select>
+      </div>
+      <div class="fr"><label>날짜</label><input type="date" id="fd"></div>
+    </div>
+    <div class="fg">
+      <div class="fr"><label>설비</label><select id="fe"></select></div>
+      <div class="fr"><label>근무자</label><input type="text" id="fw" placeholder="이름"></div>
+    </div>
+    <div class="fg">
+      <div class="fr"><label>구분</label>
+        <select id="fc">
+          <option value="">선택</option>
+          <option>설비이슈</option><option>전달사항</option>
+          <option>기자재관리</option><option>Classification</option>
+        </select>
+      </div>
+      <div></div>
+    </div>
+    <div class="fr"><label>내용</label>
+      <textarea id="fct" placeholder="증상 → 조치 → 결과&#10;- 항목은 줄바꿈으로 구분"></textarea>
+    </div>
+    <div class="mf">
+      <button class="bc" onclick="closeModal()">취소</button>
+      <button class="bs" onclick="save()">저장</button>
+    </div>
+  </div>
+</div>
+
+<div class="ctx" id="ctx">
+  <div class="ci" onclick="ctxEdit()">✏️ 수정</div>
+  <div class="ci" onclick="ctxView()">🔍 내용 전체 보기</div>
+  <div class="sep"></div>
+  <div class="ci del" onclick="ctxDel()">🗑️ 삭제</div>
+</div>
+
+<script>
+const EQUIP_BY_DONG={
+  'JC01':['공통','#1','#2','#3','#4','#5','#21','#22','#31','#32','#41','#42','#51','#52','#99','ATW#61'],
+  'JC02':['공통','#1','#2','#3','#4','#5','#6','#7','#31','#32','#51','#52','#60','#61','#71','#96','#99'],
+  '':['공통','#1','#2','#3','#4','#5','#6','#7','#10','#21','#22','#31','#32','#41','#42','#51','#52','#60','#61','#71','#96','#99','ATW#61']
+};
+
+const EBG={'#1':'#c6f6d5','#2':'#c6f6d5','#3':'#c6f6d5','#4':'#c6f6d5','#5':'#c6f6d5',
+'#21':'#fefcbf','#22':'#fefcbf','#31':'#bee3f8','#32':'#bee3f8',
+'#41':'#fed7aa','#42':'#fed7aa','#51':'#e9d8fd','#52':'#e9d8fd',
+'#61':'#b2f5ea','#99':'#fed7d7','ATW#61':'#b2f5ea','공통':'#e2e8f0'};
+const EFG={'#1':'#276749','#2':'#276749','#3':'#276749','#4':'#276749','#5':'#276749',
+'#21':'#744210','#22':'#744210','#31':'#2b6cb0','#32':'#2b6cb0',
+'#41':'#7b341e','#42':'#7b341e','#51':'#553c9a','#52':'#553c9a',
+'#61':'#234e52','#99':'#822727','ATW#61':'#234e52','공통':'#4a5568'};
+
+let all=[],fil=[],calY,calM,selDate=null,ctxId=null,editId=null;
+
+function today(){return new Date().toISOString().slice(0,10)}
+
+function saveMemo(){
+  const txt=document.getElementById('memo-text').value;
+  localStorage.setItem('hk_memo',txt);
+  const el=document.getElementById('memo-saved');
+  el.textContent='저장됨 '+new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'});
+}
+
+function loadMemo(){
+  const txt=localStorage.getItem('hk_memo')||'';
+  document.getElementById('memo-text').value=txt;
+  if(txt) document.getElementById('memo-saved').textContent='불러옴';
+}
+
+// ── 설비 다중선택 상태 ──────────────────────────────────
+let selectedEquips=new Set(); // 비어있으면 "전체"로 취급
+
+function updateEquipFilter(){
+  const dong=document.getElementById('fD').value;
+  const list=EQUIP_BY_DONG[dong]||EQUIP_BY_DONG[''];
+  // 동이 바뀌면 현재 동에 없는 설비 선택은 해제
+  selectedEquips=new Set([...selectedEquips].filter(e=>list.includes(e)));
+  renderEquipMS(list);
+  updateEquipTriggerLabel();
+}
+
+function renderEquipMS(list){
+  const panel=document.getElementById('equip-ms-panel');
+  const itemsHtml=list.map(e=>{
+    const checked=selectedEquips.has(e)?'checked':'';
+    const safeId='eqcb-'+e.replace(/[^a-zA-Z0-9]/g,'_');
+    return '<label class="ms-item" for="'+safeId+'">'
+      +'<input type="checkbox" id="'+safeId+'" value="'+esc(e)+'" '+checked+' onchange="toggleEquipItem(\''+e.replace(/'/g,"\\'")+'\',this.checked)">'
+      +'<span>'+esc(e)+'</span></label>';
+  }).join('');
+  panel.innerHTML=itemsHtml
+    +'<div class="ms-footer">'
+    +'<button onclick="equipSelectAll()">전체 선택</button>'
+    +'<button onclick="equipSelectClear()">선택 해제</button>'
+    +'</div>';
+}
+
+function toggleEquipItem(e,checked){
+  if(checked) selectedEquips.add(e); else selectedEquips.delete(e);
+  updateEquipTriggerLabel();
+  applyFilter();
+}
+
+function equipSelectAll(){
+  const dong=document.getElementById('fD').value;
+  const list=EQUIP_BY_DONG[dong]||EQUIP_BY_DONG[''];
+  selectedEquips=new Set(list);
+  renderEquipMS(list);
+  updateEquipTriggerLabel();
+  applyFilter();
+}
+
+function equipSelectClear(){
+  selectedEquips=new Set();
+  const dong=document.getElementById('fD').value;
+  const list=EQUIP_BY_DONG[dong]||EQUIP_BY_DONG[''];
+  renderEquipMS(list);
+  updateEquipTriggerLabel();
+  applyFilter();
+}
+
+function updateEquipTriggerLabel(){
+  const trigger=document.getElementById('equip-ms-trigger');
+  const n=selectedEquips.size;
+  if(n===0){
+    trigger.textContent='설비 ▾';
+    trigger.classList.remove('active');
+  }else if(n===1){
+    trigger.textContent=[...selectedEquips][0]+' ▾';
+    trigger.classList.add('active');
+  }else{
+    trigger.textContent='설비 '+n+'개 ▾';
+    trigger.classList.add('active');
+  }
+}
+
+function toggleEquipMS(){
+  document.getElementById('equip-ms-panel').classList.toggle('open');
+}
+document.addEventListener('click',function(e){
+  const wrap=document.getElementById('equip-ms-wrap');
+  if(wrap && !wrap.contains(e.target)){
+    document.getElementById('equip-ms-panel').classList.remove('open');
+  }
+});
+
+function updateEquipModal(){
+  const dong=document.getElementById('fdong').value;
+  const sel=document.getElementById('fe');
+  const prev=sel.value;
+  const list=EQUIP_BY_DONG[dong]||EQUIP_BY_DONG[''];
+  sel.innerHTML=list.map(e=>'<option'+(e===prev?' selected':'')+'>'+e+'</option>').join('');
+}
+
+function dongChanged(){
+  updateEquipFilter();
+  applyFilter();
+}
+
+function fmtDate(ds){
+  if(!ds||ds.length<10) return ds;
+  const y=ds.slice(2,4), m=parseInt(ds.slice(5,7)), d=parseInt(ds.slice(8,10));
+  return y+'.'+m+'.'+d;
+}
+
+async function init(){
+  let netInfo=null;
+  try{
+    const raw=await dbGetAll();
+    const parsed=JSON.parse(raw);
+    all=parsed.records||[];
+    netInfo=parsed;
+  }catch(e){
+    all=[];
+  }
+  // 배지 색을 먼저 적용하고 한 프레임 양보해서 화면에 그려지도록 한다.
+  // (1384건 테이블 렌더링처럼 무거운 작업이 곧바로 이어지면
+  //  배지 색 변경이 화면에 반영되기 전에 묻혀버릴 수 있다.)
+  applyNetInfo(netInfo);
+  await new Promise(r=>requestAnimationFrame(r));
+
+  const t=new Date(); calY=t.getFullYear(); calM=t.getMonth()+1;
+  document.getElementById('fD').value='JC01';
+  updateEquipFilter();
+  document.getElementById('fdong').addEventListener('change', updateEquipModal);
+  updateEquipModal();
+  applyFilter(); renderCal(); loadMemo();
+}
+
+function applyNetInfo(info){
+  const nb=document.getElementById('netbadge');
+  if(!info){
+    nb.style.color='#f87171';
+    nb.title='상태 확인 실패: 데이터 응답 없음';
+    lastNetInfo={status:'확인 실패', network:'-', error:'dbGetAll 응답 파싱 실패'};
+    return;
+  }
+  lastNetInfo=info;
+  const online=info.status && info.status.indexOf('연결됨')>=0;
+  nb.style.color=online?'#4ade80':'#f87171';
+  let tip=info.status+'\n경로: '+info.network;
+  if(info.error) tip+='\n\n원인: '+info.error;
+  nb.title=tip;
+}
+
+let lastNetInfo=null;
+
+// 배지를 클릭하면 dbGetAll을 다시 호출해서 최신 네트워크 상태와
+// 데이터를 함께 갱신한다 (별도의 상태 전용 호출은 사용하지 않음).
+async function showNetInfo(){
+  const nb=document.getElementById('netbadge');
+  nb.style.opacity='0.5';
+  try{
+    const raw=await dbGetAll();
+    const parsed=JSON.parse(raw);
+    all=parsed.records||[];
+    applyNetInfo(parsed);
+    applyFilter();
+    if(selDate) renderDetail(selDate);
+  }catch(e){
+    applyNetInfo(null);
+  }
+  nb.style.opacity='1';
+  // alert()는 화면 갱신을 멈추므로, 팝업 뜨기 전에 배지 색이
+  // 먼저 화면에 그려지도록 한 프레임 양보한다.
+  await new Promise(r=>requestAnimationFrame(r));
+  if(!lastNetInfo){alert('상태 정보를 가져오지 못했습니다.');return;}
+  let msg=lastNetInfo.status+'\n\n경로: '+lastNetInfo.network;
+  if(lastNetInfo.error) msg+='\n\n원인: '+lastNetInfo.error;
+  alert(msg);
+}
+
+function applyFilter(){
+  const q=document.getElementById('q').value.trim().toLowerCase();
+  const cat=document.getElementById('fC').value;
+  const dong=document.getElementById('fD').value;
+  fil=all.filter(r=>{
+    if(selectedEquips.size>0 && !selectedEquips.has(r.equip))return false;
+    if(cat&&r.category!==cat)return false;
+    if(dong&&(r.dong||'JC01')!==dong)return false;
+    if(q&&!(r.content+r.equip+r.worker+r.category+r.date+(r.dong||'')).toLowerCase().includes(q))return false;
+    return true;
+  });
+  fil.sort((a,b)=>b.date.localeCompare(a.date));
+  renderTable(); updateBadge(); renderCal();
+}
+
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function hl(s,q){
+  if(!q)return esc(s);
+  const re=new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'gi');
+  return esc(s).replace(re,m=>'<mark>'+m+'</mark>');
+}
+
+function renderTable(){
+  const q=document.getElementById('q').value.trim().toLowerCase();
+  const tb=document.getElementById('tb');
+  if(!fil.length){
+    tb.innerHTML='<div style="text-align:center;padding:40px;color:#a0aec0">검색 결과가 없습니다</div>';
+    return;
+  }
+  tb.innerHTML=fil.map(r=>{
+    const bg=EBG[r.equip]||'#e2e8f0', fg=EFG[r.equip]||'#4a5568';
+    const pv=r.content;
+    return '<div class="frow" id="R'+r.id+'" onclick="rowClick('+r.id+')" oncontextmenu="rowCtx(event,'+r.id+')">'
+      +'<div class="fc fc-dong"><span class="dong-badge">'+(r.dong||'JC01')+'</span></div>'
+      +'<div class="fc fc-d">'+fmtDate(r.date)+'</div>'
+      +'<div class="fc fc-e"><span class="eb" style="background:'+bg+';color:'+fg+'">'+esc(r.equip)+'</span></div>'
+      +'<div class="fc fc-w">'+esc(r.worker)+'</div>'
+      +'<div class="fc fc-c"><span class="chip c'+r.category.replace(/\s/g,'')+'">'+esc(r.category)+'</span></div>'
+      +'<div class="fc fc-ct"><div class="pv">'+hl(pv,q)+'</div></div>'
+      +'</div>';
+  }).join('');
+}
+
+function rowClick(id){
+  document.querySelectorAll('.frow').forEach(t=>t.classList.remove('sel'));
+  const row=document.getElementById('R'+id);
+  if(row)row.classList.add('sel');
+  const r=all.find(r=>r.id===id);
+  if(r){
+    const y=parseInt(r.date.slice(0,4)),m=parseInt(r.date.slice(5,7));
+    if(y!==calY||m!==calM){calY=y;calM=m;}
+    selDate=r.date; renderCal(); renderDetail(r.date);
+  }
+}
+
+function rowCtx(e,id){
+  e.preventDefault(); ctxId=id;
+  const c=document.getElementById('ctx');
+  c.style.left=e.clientX+'px'; c.style.top=e.clientY+'px'; c.classList.add('open');
+  rowClick(id);
+}
+function closeCtx(){document.getElementById('ctx').classList.remove('open')}
+document.addEventListener('click',closeCtx);
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeCtx();closeModal();}});
+
+function ctxEdit(){closeCtx();if(ctxId!==null){const r=all.find(r=>r.id===ctxId);if(r)openModal(r);}}
+function ctxView(){closeCtx();if(ctxId!==null){const r=all.find(r=>r.id===ctxId);if(r)viewFull(r);}}
+async function ctxDel(){
+  closeCtx();
+  if(ctxId===null)return;
+  if(!confirm('선택한 항목을 삭제하시겠습니까?'))return;
+  await dbDelete(ctxId);
+  all=all.filter(r=>r.id!==ctxId);
+  applyFilter(); if(selDate)renderDetail(selDate);
+}
+
+function updateBadge(){
+  const t=all.length,s=fil.length;
+  document.getElementById('tbadge').textContent=t+'건';
+  document.getElementById('cntbar').textContent=s<t?s+'건 표시 중 (전체 '+t+'건)':'전체 '+t+'건';
+}
+
+function renderCal(){
+  document.getElementById('ctitle').textContent=calY+'년 '+calM+'월';
+  const ds=new Set(all.map(r=>r.date)), td=today();
+  const fd=new Date(calY,calM-1,1).getDay(), dm=new Date(calY,calM,0).getDate();
+  let h='';
+  for(let i=0;i<fd;i++)h+='<div class="day em"></div>';
+  for(let d=1;d<=dm;d++){
+    const s=calY+'-'+String(calM).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+    const cls=['day',s===td?'td2':'',ds.has(s)?'hd':'',s===selDate?'sd':''].filter(Boolean).join(' ');
+    h+='<div class="'+cls+'" onclick="selDate2(\''+s+'\')">'+d+'</div>';
+  }
+  document.getElementById('days').innerHTML=h;
+}
+
+function chM(d){calM+=d;if(calM<1){calM=12;calY--;}if(calM>12){calM=1;calY++;}renderCal();}
+function selDate2(ds){selDate=ds;renderCal();renderDetail(ds);}
+
+function renderDetail(ds){
+  const dr=all.filter(r=>r.date===ds).sort((a,b)=>a.category.localeCompare(b.category));
+  document.getElementById('dhdr').textContent=ds+'  ('+dr.length+'건)';
+  if(!dr.length){
+    document.getElementById('dbody').innerHTML='<div class="es">🕍<br>이 날짜의 기록이 없습니다</div>';
+    return;
+  }
+  document.getElementById('dbody').innerHTML=dr.map(r=>{
+    const bg=EBG[r.equip]||'#e2e8f0',fg=EFG[r.equip]||'#4a5568';
+    return '<div class="di">'
+      +'<div class="di-h">'
+      +'<span class="chip c'+r.category.replace(/\s/g,'')+'">'+esc(r.category)+'</span>'
+      +'<span class="eb" style="background:'+bg+';color:'+fg+';font-size:10px">'+esc(r.equip)+'</span>'
+      +'<span style="margin-left:auto;font-size:10px;color:#718096">'+esc(r.worker)+'</span>'
+      +'</div>'
+      +'<div class="di-b">'+esc(r.content)+'</div>'
+      +'</div>';
+  }).join('');
+}
+
+function openModal(rec){
+  editId=rec?rec.id:null;
+  document.getElementById('mtitle').textContent=rec?'항목 수정':'새 항목 추가';
+
+  // 새 항목 추가 시: 현재 화면에서 선택된 동, 가장 최근에 작성된
+  // 항목의 근무자/구분을 기본값으로 채운다 (반복 입력 편의를 위함).
+  let lastRecord=null;
+  if(!rec && all.length){
+    lastRecord = all.reduce((a,b)=> (b.id>a.id?b:a), all[0]);
+  }
+  const curDong = document.getElementById('fD').value || 'JC01';
+
+  document.getElementById('fdong').value = rec ? (rec.dong||'JC01') : curDong;
+  updateEquipModal();
+  document.getElementById('fd').value=rec?rec.date:today();
+  document.getElementById('fe').value=rec?rec.equip:'';
+  document.getElementById('fw').value = rec ? rec.worker : (lastRecord ? lastRecord.worker : '');
+  document.getElementById('fc').value = rec ? rec.category : (lastRecord ? lastRecord.category : '');
+  document.getElementById('fct').value=rec?rec.content:'';
+  document.getElementById('mbg').classList.add('open');
+  setTimeout(()=>document.getElementById('fd').focus(),100);
+}
+function closeModal(){document.getElementById('mbg').classList.remove('open');editId=null;}
+function bgClick(e){if(e.target===document.getElementById('mbg'))closeModal();}
+
+async function save(){
+  const dong=document.getElementById('fdong').value.trim();
+  const date=document.getElementById('fd').value.trim();
+  const equip=document.getElementById('fe').value.trim();
+  const worker=document.getElementById('fw').value.trim();
+  const cat=document.getElementById('fc').value.trim();
+  const content=document.getElementById('fct').value.trim();
+  if(!date||!equip||!cat||!content){alert('필수 항목을 입력해주세요.');return;}
+  if(editId!==null){
+    await dbUpdate(editId,date,equip,worker,cat,content,dong);
+    const i=all.findIndex(r=>r.id===editId);
+    if(i>=0)all[i]={id:editId,date,equip,worker,category:cat,content,dong};
+  }else{
+    const raw=await dbAdd(date,equip,worker,cat,content,dong);
+    all.push(JSON.parse(raw));
+  }
+  closeModal(); applyFilter();
+  selDate=date;
+  const y=parseInt(date.slice(0,4)),m=parseInt(date.slice(5,7));
+  calY=y;calM=m; renderCal(); renderDetail(date);
+}
+
+function viewFull(r){
+  const bg=EBG[r.equip]||'#e2e8f0',fg=EFG[r.equip]||'#4a5568';
+  const d=document.createElement('div');
+  d.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:300;display:flex;align-items:center;justify-content:center';
+  d.innerHTML='<div style="background:#fff;border-radius:12px;padding:20px;width:600px;max-width:95vw;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.3)">'
+    +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid #e2e8f0">'
+    +'<span class="chip c'+r.category.replace(/\s/g,'')+'">'+esc(r.category)+'</span>'
+    +'<span class="eb" style="background:'+bg+';color:'+fg+'">'+esc(r.equip)+'</span>'
+    +'<span style="color:#718096;font-size:11px">'+esc(r.worker)+'</span>'
+    +'<span style="color:#718096;font-size:11px;margin-left:auto">'+esc(r.date)+'</span>'
+    +'<button onclick="this.closest(\'[style]\').remove()" style="margin-left:8px;background:none;border:none;cursor:pointer;font-size:18px;color:#718096;line-height:1">✕</button>'
+    +'</div>'
+    +'<div style="overflow-y:auto;white-space:pre-wrap;font-size:13px;line-height:1.8;color:#2d3748;flex:1">'+esc(r.content)+'</div>'
+    +'</div>';
+  d.onclick=e=>{if(e.target===d)d.remove();};
+  document.body.appendChild(d);
+}
+
+function exportCSV(){
+  const rows=[['동','날짜','설비','근무자','구분','내용']];
+  [...all].sort((a,b)=>b.date.localeCompare(a.date))
+    .forEach(r=>rows.push([r.dong||'JC01',r.date,r.equip,r.worker,r.category,r.content]));
+  const csv=rows.map(row=>row.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\r\n');
+  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url; a.download='인수인계_'+today()+'.csv'; a.click();
+  URL.revokeObjectURL(url);
+}
+
+async function openPartsFile(){
+  const res=await openPartsFile_go();
+  if(res.startsWith('ERR:')){
+    alert('파일을 열 수 없습니다: '+res.slice(4));
+  }
+}
+
+init();
+</script>
+</body>
+</html>`, "")
+}

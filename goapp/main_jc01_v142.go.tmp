@@ -147,6 +147,30 @@ func migrateEquipNames(rs []Record) ([]Record, bool) {
 	return rs, changed
 }
 
+// migrateIDOffsets는 JC01/JC02가 같은 records.json을 공유하면서 오프라인 중
+// 각자 로컬 백업 기준으로 ID를 새로 채번하다가 재접속 시 충돌하는 문제를
+// 막기 위해, 동(dong)별로 ID 대역을 분리한다.
+// JC01: 100000번대, JC02: 200000번대. 예전 방식(순차 정수 ID)으로 저장된
+// 데이터를 만나면 여기서 한 번만 옮겨준다 (이미 대역 안에 있으면 그대로 둠).
+func migrateIDOffsets(rs []Record) ([]Record, bool) {
+	changed := false
+	for i := range rs {
+		switch rs[i].Dong {
+		case "JC01":
+			if rs[i].ID < 100000 {
+				rs[i].ID += 100000
+				changed = true
+			}
+		case "JC02":
+			if rs[i].ID < 200000 {
+				rs[i].ID += 200000
+				changed = true
+			}
+		}
+	}
+	return rs, changed
+}
+
 func loadRecords() {
 	dataFile = filepath.Join(getNetworkDir(), "records.json")
 	cacheFile = filepath.Join(getDataDir(), "records_local_backup.json")
@@ -156,8 +180,10 @@ func loadRecords() {
 	if netRecords != nil {
 		records = netRecords
 		networkOK = true
-		if migrated, changed := migrateEquipNames(records); changed {
-			records = migrated
+		eqRecords, eqChanged := migrateEquipNames(records)
+		idRecords, idChanged := migrateIDOffsets(eqRecords)
+		records = idRecords
+		if eqChanged || idChanged {
 			saveRecords()
 			return
 		}
@@ -171,8 +197,10 @@ func loadRecords() {
 	localRecords := readWithTimeout(cacheFile, 3)
 	if localRecords != nil {
 		records = localRecords
-		if migrated, changed := migrateEquipNames(records); changed {
-			records = migrated
+		eqRecords, eqChanged := migrateEquipNames(records)
+		idRecords, idChanged := migrateIDOffsets(eqRecords)
+		records = idRecords
+		if eqChanged || idChanged {
 			writeWithTimeout(cacheFile, records, 3)
 		}
 		return
@@ -194,10 +222,12 @@ func saveRecords() {
 	writeWithTimeout(cacheFile, records, 3)
 }
 
+// JC01은 100000번대 ID를 쓴다 (JC02는 200000번대). 공유 파일을 오프라인
+// 상태에서 각자 채번하다가 재접속했을 때 ID가 겹치지 않게 하기 위함.
 func nextID() int {
-	max := 0
+	max := 100000
 	for _, r := range records {
-		if r.ID > max {
+		if r.ID > max && r.ID < 200000 {
 			max = r.ID
 		}
 	}
@@ -888,13 +918,18 @@ function openModal(rec){
   editId=rec?rec.id:null;
   document.getElementById('mtitle').textContent=rec?'항목 수정':'새 항목 추가';
 
-  // 새 항목 추가 시: 현재 화면에서 선택된 동, 가장 최근에 작성된
-  // 항목의 근무자/구분을 기본값으로 채운다 (반복 입력 편의를 위함).
+  const curDong = document.getElementById('fD').value || 'JC01';
+
+  // 새 항목 추가 시: 현재 화면에서 선택된 동과 같은 동에서 가장 최근에
+  // 작성된 항목의 근무자/구분을 기본값으로 채운다 (반복 입력 편의를 위함).
+  // JC01/JC02가 ID 대역을 나눠 쓰게 되면서 (100000번대/200000번대) 전체
+  // 레코드 중 ID 최댓값은 더 이상 "가장 최근"을 의미하지 않으므로, 같은
+  // 동으로 먼저 걸러낸 뒤 그 안에서 최댓값을 찾는다.
   let lastRecord=null;
   if(!rec && all.length){
-    lastRecord = all.reduce((a,b)=> (b.id>a.id?b:a), all[0]);
+    const dongRecords = all.filter(r=>(r.dong||'JC01')===curDong);
+    if(dongRecords.length) lastRecord = dongRecords.reduce((a,b)=> (b.id>a.id?b:a), dongRecords[0]);
   }
-  const curDong = document.getElementById('fD').value || 'JC01';
 
   document.getElementById('fdong').value = rec ? (rec.dong||'JC01') : curDong;
   updateEquipModal();

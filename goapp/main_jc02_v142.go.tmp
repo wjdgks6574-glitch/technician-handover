@@ -352,7 +352,7 @@ func handleBind(w webview.WebView) {
 }
 
 func openPartsFileImpl() string {
-	dir := `\\172.23.11.175\ETC_JC_BergerHalm\2동\Pending Item&지속관리`
+	dir := `\\172.23.11.175\CELL_MEE_JC_MaintenanceEquipment\03_JC2\00_Process\P07~10 Backend\P10 Cell Sorter`
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return "ERR:폴더를 찾을 수 없습니다 (" + err.Error() + ")"
@@ -363,7 +363,7 @@ func openPartsFileImpl() string {
 		if strings.HasPrefix(name, "~$") {
 			continue
 		}
-		if strings.Contains(name, "JC_2 Sorter 필요 Parts") &&
+		if strings.Contains(name, "JC_2 Sorter 필요 Parts2") &&
 			(strings.HasSuffix(name, ".xlsx") || strings.HasSuffix(name, ".xls") || strings.HasSuffix(name, ".xlsb")) {
 			target = filepath.Join(dir, name)
 			break
@@ -538,7 +538,7 @@ mark{background:#fef08a;border-radius:2px}
 </head>
 <body>
 <div class="topbar">
-  <h1>📋 인수인계 관리 [JC02]</h1><span style="font-size:10px;color:#64b5f6;background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:4px;font-weight:400;letter-spacing:0.5px">v1.4.18</span>
+  <h1>📋 인수인계 관리 [JC02]</h1><span style="font-size:10px;color:#64b5f6;background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:4px;font-weight:400;letter-spacing:0.5px">v1.4.19</span>
   <span class="badge" id="tbadge">0건</span>
   <span id="netbadge" onclick="showNetInfo()" style="font-size:11px;padding:2px 8px;border-radius:99px;cursor:pointer;color:#f87171" title="확인 중...">●</span>
   <div class="spacer"></div>

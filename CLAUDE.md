@@ -29,7 +29,7 @@ goapp/main_jc02_v142.go.tmp    JC02 소스 (정본)
 
 ## 🔨 빌드 & 버전
 
-현재 버전: **v1.4.18**
+현재 버전: **JC01 v1.4.18 · JC02 v1.4.19** (JC02 파츠 경로 변경으로 JC02만 올림)
 
 ```bash
 export GOPATH=$HOME/go && export PATH=$PATH:/usr/local/go/bin
@@ -52,14 +52,14 @@ rm -f main.go
 확인은 `diff main_jc01_v142.go.tmp main_jc02_v142.go.tmp` 한 줄이면 된다 —
 두 파일을 각각 Read 하지 말 것.
 
-다른 곳 (JC01 → JC02 기준 라인번호, v1.4.18 시점):
+다른 곳 (JC01 → JC02 기준 라인번호, v1.4.18(JC01)·v1.4.19(JC02) 시점):
 | 줄 | JC01 | JC02 |
 |----|------|------|
 | 251 | 주석 "JC01은 100000번대" | "JC02는 200000번대" |
 | 254 | `max := 100000` | `max := 200000` |
 | 256 | `r.ID < 200000` | `r.ID < 300000` |
-| 355 | `...\1동\Pending...` | `...\2동\Pending...` |
-| 366 | `"JC_1 Sorter 필요 Parts"` | `"JC_2 Sorter 필요 Parts"` |
+| 355 | `...\1동\Pending Item&지속관리` | `...\CELL_MEE_..\P10 Cell Sorter` (파츠폴더) |
+| 366 | `"JC_1 Sorter 필요 Parts"` | `"JC_2 Sorter 필요 Parts2"` (파츠파일명) |
 | 541 | `[JC01]` (제목) | `[JC02]` |
 | 554-555 | `JC01 selected` | `JC02 selected` |
 | 608 | `<option value="JC02">` | `<option value="JC02" selected>` |

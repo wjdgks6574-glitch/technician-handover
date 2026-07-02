@@ -501,7 +501,7 @@ mark{background:#fef08a;border-radius:2px}
 </head>
 <body>
 <div class="topbar">
-  <h1>📋 인수인계 관리 [JC01]</h1><span style="font-size:10px;color:#64b5f6;background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:4px;font-weight:400;letter-spacing:0.5px">v1.4.14</span>
+  <h1>📋 인수인계 관리 [JC01]</h1><span style="font-size:10px;color:#64b5f6;background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:4px;font-weight:400;letter-spacing:0.5px">v1.4.15</span>
   <span class="badge" id="tbadge">0건</span>
   <span id="netbadge" onclick="showNetInfo()" style="font-size:11px;padding:2px 8px;border-radius:99px;cursor:pointer;color:#f87171" title="확인 중...">●</span>
   <div class="spacer"></div>
@@ -607,7 +607,7 @@ mark{background:#fef08a;border-radius:2px}
 <script>
 const EQUIP_BY_DONG={
   'JC01':['공통','#1','#2','#3','#4','#5','#21','#22','#31','#32','#41','#42','#51','#52','#99','ATW#61'],
-  'JC02':['공통','#1','#2','#3','#4','#5','#6','#7','#31','#32','#51','#52','#60','#61','#71','#96','#99'],
+  'JC02':['공통','#1','#2','#3','#4','#5','#6','#7','#31','#32','#41','#51','#52','#60','#61','#71','#96','#99'],
   '':['공통','#1','#2','#3','#4','#5','#6','#7','#10','#21','#22','#31','#32','#41','#42','#51','#52','#60','#61','#71','#96','#99','ATW#61']
 };
 

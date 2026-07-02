@@ -29,7 +29,7 @@ goapp/main_jc02_v142.go.tmp    JC02 소스 (정본)
 
 ## 🔨 빌드 & 버전
 
-현재 버전: **JC01 v1.4.18 · JC02 v1.4.19** (JC02 파츠 경로 변경으로 JC02만 올림)
+현재 버전: **v1.4.20**
 
 ```bash
 export GOPATH=$HOME/go && export PATH=$PATH:/usr/local/go/bin
@@ -37,13 +37,13 @@ cd goapp
 # JC01 (JC02는 파일명만 jc02로)
 cp main_jc01_v142.go.tmp main.go && gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.18.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.20.exe .
 rm -f main.go
 ```
 
 - `-ldflags`에 **`-s -w` 넣지 말 것** (백신 오탐 원인).
 - **빌드해서 전달할 때마다 버전을 올린다.** 소스 2개 HTML의 `v1.4.X` 문자열
-  (각 파일 541번째 줄)과 이 문서·`HANDOFF.md`의 버전도 함께 바꾼다.
+  (각 파일 557번째 줄)과 이 문서·`HANDOFF.md`의 버전도 함께 바꾼다.
 
 ## ⚠️ 두 소스는 997줄이 동일, 딱 13곳만 다르다
 
@@ -52,21 +52,21 @@ rm -f main.go
 확인은 `diff main_jc01_v142.go.tmp main_jc02_v142.go.tmp` 한 줄이면 된다 —
 두 파일을 각각 Read 하지 말 것.
 
-다른 곳 (JC01 → JC02 기준 라인번호, v1.4.18(JC01)·v1.4.19(JC02) 시점):
+다른 곳 (JC01 → JC02 기준 라인번호, v1.4.20 시점):
 | 줄 | JC01 | JC02 |
 |----|------|------|
 | 251 | 주석 "JC01은 100000번대" | "JC02는 200000번대" |
 | 254 | `max := 100000` | `max := 200000` |
 | 256 | `r.ID < 200000` | `r.ID < 300000` |
-| 355 | `...\1동\Pending Item&지속관리` | `...\CELL_MEE_..\P10 Cell Sorter` (파츠폴더) |
-| 366 | `"JC_1 Sorter 필요 Parts"` | `"JC_2 Sorter 필요 Parts2"` (파츠파일명) |
-| 541 | `[JC01]` (제목) | `[JC02]` |
-| 554-555 | `JC01 selected` | `JC02 selected` |
-| 608 | `<option value="JC02">` | `<option value="JC02" selected>` |
-| 666 | `localStorage.setItem('hk_memo',…)` | `'hk_memo_jc02'` |
-| 672 | `getItem('hk_memo')` | `getItem('hk_memo_jc02')` |
-| 790 | `fD.value='JC01'` | `='JC02'` |
-| 991 | `... || 'JC01'` | `... || 'JC02'` |
+| 371 | `...\1동\Pending Item&지속관리` | `...\CELL_MEE_..\P10 Cell Sorter` (파츠폴더) |
+| 382 | `"JC_1 Sorter 필요 Parts"` | `"JC_2 Sorter 필요 Parts2"` (파츠파일명) |
+| 557 | `[JC01]` (제목) | `[JC02]` |
+| 570-571 | `JC01 selected` | `JC02 selected` |
+| 624 | `<option value="JC02">` | `<option value="JC02" selected>` |
+| 682 | `memoSave('hk_memo',…)` | `memoSave('hk_memo_jc02',…)` |
+| 688 | `memoLoad('hk_memo')` | `memoLoad('hk_memo_jc02')` |
+| 806 | `fD.value='JC01'` | `='JC02'` |
+| 1007 | `... || 'JC01'` | `... || 'JC02'` |
 
 ## 🗂 데이터 모델 (Record)
 
@@ -93,10 +93,10 @@ type Record struct {
 | 143 `migrateEquipNames` · 159 `migrateIDOffsets` | 마이그레이션 |
 | 178 `loadRecords` · 222 `saveRecords` | 데이터 로직 |
 | 235 `saveMerged` · 253 `nextID(rs)` | 저장 시 재읽기·델타 병합 / 채번 |
-| 268 `handleBind` | WebView2 바인딩 (dbGetAll/dbAdd/dbUpdate/dbDelete → saveMerged) |
-| 354 `openPartsFileImpl` · 386 `maximizeWindow` | |
-| 392 `main` | WebView2 생성. `DataPath` 고정(getDataDir/webview2) — 메모 유지용 |
-| 428 `buildHTML` | UI 전체 (HTML+CSS+JS, ~600줄) |
+| 268 `handleBind` | WebView2 바인딩 (dbGetAll/dbAdd/dbUpdate/dbDelete→saveMerged, memoSave/memoLoad) |
+| 370 `openPartsFileImpl` · 402 `maximizeWindow` | |
+| 408 `main` | WebView2 생성. `DataPath` 고정(getDataDir/webview2) |
+| 444 `buildHTML` | UI 전체 (HTML+CSS+JS, ~600줄) |
 
 ## 🚫 회귀 방지 (HANDOFF의 과거 사건 요약 — 상세는 HANDOFF.md)
 
@@ -110,4 +110,7 @@ type Record struct {
 - **메인 목록은 가상 스크롤(점진적 렌더)** — `renderTable`이 `fil` 전량을
   `innerHTML`로 그리지 말 것(1만 건 렉 원인). `RCHUNK`(60)씩 `renderMore()`로
   이어붙이고 `.tw` 스크롤 하단에서 다음 묶음 로드. 전량 렌더로 되돌리지 말 것.
+- **메모는 `localStorage` 금지, 로컬 파일 저장** — `SetHtml`(NavigateToString)은
+  origin이 opaque라 localStorage가 재시작 시 유실된다. `memoSave/memoLoad` Go
+  바인딩으로 `%APPDATA%\인수인계관리\<key>.txt`에 저장. localStorage로 되돌리지 말 것.
 - 헤드리스/유닛테스트 통과 ≠ Windows 실기 정상. 큰 변경은 실기 확인 필요.

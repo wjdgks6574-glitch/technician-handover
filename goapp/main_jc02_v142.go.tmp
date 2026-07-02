@@ -349,6 +349,22 @@ func handleBind(w webview.WebView) {
 	w.Bind("openPartsFile_go", func() string {
 		return openPartsFileImpl()
 	})
+
+	// 메모 저장은 localStorage를 쓰면 SetHtml(NavigateToString)의 opaque
+	// origin 때문에 재시작 시 사라진다. 그래서 로컬 파일에 저장한다. key로
+	// 파일명을 분리(JC01=hk_memo / JC02=hk_memo_jc02)해 같은 PC에 두 exe를
+	// 깔아도 메모가 안 섞이게 한다. 파일은 %APPDATA%\인수인계관리\<key>.txt.
+	w.Bind("memoSave", func(key, text string) bool {
+		p := filepath.Join(getDataDir(), filepath.Base(key)+".txt")
+		return os.WriteFile(p, []byte(text), 0644) == nil
+	})
+	w.Bind("memoLoad", func(key string) string {
+		data, err := os.ReadFile(filepath.Join(getDataDir(), filepath.Base(key)+".txt"))
+		if err != nil {
+			return ""
+		}
+		return string(data)
+	})
 }
 
 func openPartsFileImpl() string {
@@ -538,7 +554,7 @@ mark{background:#fef08a;border-radius:2px}
 </head>
 <body>
 <div class="topbar">
-  <h1>📋 인수인계 관리 [JC02]</h1><span style="font-size:10px;color:#64b5f6;background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:4px;font-weight:400;letter-spacing:0.5px">v1.4.19</span>
+  <h1>📋 인수인계 관리 [JC02]</h1><span style="font-size:10px;color:#64b5f6;background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:4px;font-weight:400;letter-spacing:0.5px">v1.4.20</span>
   <span class="badge" id="tbadge">0건</span>
   <span id="netbadge" onclick="showNetInfo()" style="font-size:11px;padding:2px 8px;border-radius:99px;cursor:pointer;color:#f87171" title="확인 중...">●</span>
   <div class="spacer"></div>
@@ -663,13 +679,13 @@ function today(){return new Date().toISOString().slice(0,10)}
 
 function saveMemo(){
   const txt=document.getElementById('memo-text').value;
-  localStorage.setItem('hk_memo_jc02',txt);
+  memoSave('hk_memo_jc02',txt);
   const el=document.getElementById('memo-saved');
   el.textContent='저장됨 '+new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'});
 }
 
-function loadMemo(){
-  const txt=localStorage.getItem('hk_memo_jc02')||'';
+async function loadMemo(){
+  const txt=(await memoLoad('hk_memo_jc02'))||'';
   document.getElementById('memo-text').value=txt;
   if(txt) document.getElementById('memo-saved').textContent='불러옴';
 }

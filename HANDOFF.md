@@ -1,6 +1,6 @@
 # 인수인계 관리 프로그램 - 작업 인수인계 문서
 
-## 현재 버전: JC01 v1.4.18 · JC02 v1.4.19
+## 현재 버전: v1.4.20
 
 Go + WebView2 기반 Windows 데스크톱 앱. JC01(1동)/JC02(2동) 두 변형이 거의 동일한
 소스 구조를 공유하며, 각각 별도의 .exe로 빌드됨.
@@ -38,13 +38,13 @@ cd goapp
 cp main_jc01_v142.go.tmp main.go
 gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.18.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.20.exe .
 
 # JC02
 cp main_jc02_v142.go.tmp main.go
 gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC02_v1.4.19.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC02_v1.4.20.exe .
 ```
 
 **주의**: `-ldflags`에 `-s -w`를 넣지 마세요. 심볼 제거(압축)가 백신 오탐의
@@ -172,16 +172,21 @@ ID 대역을 나눴습니다.
   (날짜 필드 기준이 아님 — 날짜는 사용자가 소급 입력할 수 있어서 신뢰 불가)
 
 ### 메모장 (v1.4.4)
-- 테이블과 달력 사이에 위치, `localStorage` 기반 (서버 저장 아님, PC별 개인 메모)
+- 테이블과 달력 사이에 위치, 서버 저장 아님(PC별 개인 메모).
 - JC01/JC02는 저장 키가 다름 (`hk_memo` vs `hk_memo_jc02`) — 같은 PC에
-  두 exe를 다 설치해도 메모가 안 섞임
-- **WebView2 데이터 폴더 고정 (v1.4.14)**: `localStorage`는 WebView2 사용자
-  데이터 폴더 안에 저장되는데, `DataPath`를 지정하지 않으면 라이브러리가
-  기본값으로 `%AppData%\<exe 파일명>`을 쓴다. 버전 올릴 때 exe 파일명이
-  바뀌면 폴더도 바뀌어 **메모가 매번 초기화된 것처럼 보이는 문제**가 있었다.
-  `main()`에서 `DataPath: filepath.Join(getDataDir(), "webview2")`로 버전과
-  무관하게 고정해 해결했다 (이후 버전 올려도 메모 유지). 단, 이 수정을 처음
-  배포하는 순간엔 옛 폴더의 메모가 새 폴더로 이관되지 않아 한 번은 비워진다.
+  두 exe를 다 설치해도 메모가 안 섞임.
+- **메모를 로컬 파일 저장으로 변경 (v1.4.20) — 재시작 시 유실 완전 해결**:
+  원래 `localStorage` 기반이었는데, 이 앱은 HTML을 `w.SetHtml()`
+  (NavigateToString)으로 로드한다. 이 방식은 페이지 origin이 **opaque(null)**
+  이라 **localStorage가 디스크에 저장되지 않는다** — 세션 중에만 살아있고
+  프로그램을 껐다 켜면 사라진다(같은 exe로 재시작해도 유실). v1.4.14의
+  `DataPath` 고정은 폴더 문제를 봤지만 origin 문제라 애초에 저장이 안 됐던 것.
+  이제 `memoSave(key,text)` / `memoLoad(key)` Go 바인딩으로
+  `%APPDATA%\인수인계관리\<key>.txt` (JC01=`hk_memo.txt`, JC02=`hk_memo_jc02.txt`)
+  에 저장한다. `filepath.Base(key)`로 경로 조작을 막았다. `saveMemo`는
+  fire-and-forget으로 파일에 쓰고(입력마다), `loadMemo`는 시작 시 async로 읽는다.
+  **다시 `localStorage`로 되돌리지 말 것 — 유실 재발.** (`DataPath` 고정 자체는
+  WebView2 캐시 등을 우리 폴더에 모으는 용도로 그대로 유지.)
 
 ---
 

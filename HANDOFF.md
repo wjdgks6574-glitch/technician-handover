@@ -1,6 +1,6 @@
 # 인수인계 관리 프로그램 - 작업 인수인계 문서
 
-## 현재 버전: v1.4.16
+## 현재 버전: v1.4.17
 
 Go + WebView2 기반 Windows 데스크톱 앱. JC01(1동)/JC02(2동) 두 변형이 거의 동일한
 소스 구조를 공유하며, 각각 별도의 .exe로 빌드됨.
@@ -38,13 +38,13 @@ cd goapp
 cp main_jc01_v142.go.tmp main.go
 gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.16.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.17.exe .
 
 # JC02
 cp main_jc02_v142.go.tmp main.go
 gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC02_v1.4.16.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC02_v1.4.17.exe .
 ```
 
 **주의**: `-ldflags`에 `-s -w`를 넣지 마세요. 심볼 제거(압축)가 백신 오탐의
@@ -69,6 +69,22 @@ GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
 - 읽기/쓰기 모두 **5초/3초 타임아웃**을 goroutine+channel로 걸어둠
   (`readWithTimeout`, `writeWithTimeout` 함수). 이게 없으면 서버가 꺼져있을 때
   Windows SMB 타임아웃(수십 초)까지 프로그램이 멈춰 보이는 문제가 있었음.
+
+**저장 시 재읽기·델타 병합 (v1.4.17) — 동시 사용 데이터 유실 방지**:
+JC01 PC와 JC02 PC가 같은 `records.json`을 공유하는데, 예전엔 저장할 때 각 앱이
+**켤 때 읽은 메모리 스냅샷을 통째로 덮어썼다**. 그래서 두 PC를 동시에 켜두고
+각자 입력하면 나중에 저장한 쪽이 상대가 그동안 넣은 데이터를 덮어써 사라지는
+문제(last-writer-wins)가 있었다. 이제 `dbAdd/dbUpdate/dbDelete`는 `saveMerged()`
+를 통해 **저장 직전에 네트워크 파일을 다시 읽어 최신본에 이번 변경분(1건)만
+얹은 뒤** 쓴다. JC01=100000번대 / JC02=200000번대로 dong·ID 대역이 갈려 서로의
+레코드를 건드리지 않으므로 병합 충돌이 없다(복잡한 병합 로직 불필요). 부가로
+`writeWithTimeout`의 임시파일명에 나노초를 붙여 두 PC가 동시에 쓸 때 `.tmp`
+충돌을 막았다(rename은 원자적). 주의: **이 보호는 양쪽 PC가 모두 v1.4.17
+이상일 때만 효과가 있다** — 한쪽이 옛 버전이면 그쪽이 여전히 통째 덮어쓴다.
+남는 미세 경합: 두 PC가 정확히 같은 순간(수 ms) 저장하면 짧은 창은 남지만,
+"세션 내내 유실" → "저장 순간 수 ms"로 줄어 사실상 해결. 완전 제거(파일 잠금)는
+과거 hang 이슈 위험이 있어 도입하지 않음. 저장할 때마다 파일을 한 번 더 읽으므로
+큰 DB에서는 저장이 약간 느려질 수 있다(정확성 우선).
 
 ### Record 구조체
 ```go

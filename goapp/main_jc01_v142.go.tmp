@@ -99,13 +99,17 @@ func writeWithTimeout(path string, rs []Record, seconds int) bool {
 			ch <- false
 			return
 		}
-		tmp := path + ".tmp"
+		// 임시파일 이름에 나노초를 붙여 유니크하게 만든다. JC01/JC02 두 PC가
+		// 같은 폴더에 동시에 쓸 때 같은 .tmp를 덮어써 깨지는 것을 막기 위함
+		// (rename은 원자적이라 최종 파일은 둘 중 하나로 온전히 남는다).
+		tmp := fmt.Sprintf("%s.%d.tmp", path, time.Now().UnixNano())
 		if err := os.WriteFile(tmp, data, 0644); err != nil {
 			lastNetErr = "파일 쓰기 실패: " + err.Error()
 			ch <- false
 			return
 		}
 		if err := os.Rename(tmp, path); err != nil {
+			os.Remove(tmp)
 			lastNetErr = "파일 이름변경 실패: " + err.Error()
 			ch <- false
 			return
@@ -222,11 +226,33 @@ func saveRecords() {
 	writeWithTimeout(cacheFile, records, 3)
 }
 
+// saveMerged는 저장 직전에 네트워크 파일을 "다시 읽어" 최신 상태에 이번
+// 변경분(apply)만 얹은 뒤 쓴다. JC01/JC02가 같은 records.json을 공유하므로
+// 메모리 스냅샷을 통째로 덮어쓰면 상대 동이 그동안 저장한 내용이 사라진다
+// (last-writer-wins). 두 동은 dong과 ID 대역(JC01=100000·JC02=200000)이 갈려
+// 서로의 레코드를 건드리지 않으니, 최신본에 델타만 얹으면 충돌 없이 양쪽
+// 데이터가 보존된다. 네트워크를 못 읽으면 메모리 기준으로 폴백한다(안전 우선).
+func saveMerged(apply func([]Record) []Record) {
+	base := readWithTimeout(dataFile, 5)
+	if base != nil {
+		base, _ = migrateEquipNames(base)
+		base, _ = migrateIDOffsets(base)
+		networkOK = true
+	} else {
+		base = records // 최신본을 못 읽으면 현재 메모리 기준 (기존 동작)
+	}
+	records = apply(base)
+	ok := writeWithTimeout(dataFile, records, 5)
+	networkOK = ok
+	// 네트워크 저장 성공 여부와 관계없이 로컬 안전망은 항상 갱신
+	writeWithTimeout(cacheFile, records, 3)
+}
+
 // JC01은 100000번대 ID를 쓴다 (JC02는 200000번대). 공유 파일을 오프라인
 // 상태에서 각자 채번하다가 재접속했을 때 ID가 겹치지 않게 하기 위함.
-func nextID() int {
+func nextID(rs []Record) int {
 	max := 100000
-	for _, r := range records {
+	for _, r := range rs {
 		if r.ID > max && r.ID < 200000 {
 			max = r.ID
 		}
@@ -255,45 +281,56 @@ func handleBind(w webview.WebView) {
 	})
 
 	w.Bind("dbAdd", func(date, equip, worker, category, content, dong string) string {
-		r := Record{
-			ID:       nextID(),
-			Date:     strings.TrimSpace(date),
-			Equip:    strings.TrimSpace(equip),
-			Worker:   strings.TrimSpace(worker),
-			Category: strings.TrimSpace(category),
-			Content:  strings.TrimSpace(content),
-			Dong:     strings.TrimSpace(dong),
-		}
-		records = append(records, r)
-		saveRecords()
-		return toJSON(r)
+		var added Record
+		saveMerged(func(base []Record) []Record {
+			added = Record{
+				ID:       nextID(base),
+				Date:     strings.TrimSpace(date),
+				Equip:    strings.TrimSpace(equip),
+				Worker:   strings.TrimSpace(worker),
+				Category: strings.TrimSpace(category),
+				Content:  strings.TrimSpace(content),
+				Dong:     strings.TrimSpace(dong),
+			}
+			return append(base, added)
+		})
+		return toJSON(added)
 	})
 
 	w.Bind("dbUpdate", func(id int, date, equip, worker, category, content, dong string) bool {
-		for i := range records {
-			if records[i].ID == id {
-				records[i].Date = strings.TrimSpace(date)
-				records[i].Equip = strings.TrimSpace(equip)
-				records[i].Worker = strings.TrimSpace(worker)
-				records[i].Category = strings.TrimSpace(category)
-				records[i].Content = strings.TrimSpace(content)
-				records[i].Dong = strings.TrimSpace(dong)
-				saveRecords()
-				return true
+		found := false
+		saveMerged(func(base []Record) []Record {
+			for i := range base {
+				if base[i].ID == id {
+					base[i].Date = strings.TrimSpace(date)
+					base[i].Equip = strings.TrimSpace(equip)
+					base[i].Worker = strings.TrimSpace(worker)
+					base[i].Category = strings.TrimSpace(category)
+					base[i].Content = strings.TrimSpace(content)
+					base[i].Dong = strings.TrimSpace(dong)
+					found = true
+					break
+				}
 			}
-		}
-		return false
+			return base
+		})
+		return found
 	})
 
 	w.Bind("dbDelete", func(id int) bool {
-		for i := range records {
-			if records[i].ID == id {
-				records = append(records[:i], records[i+1:]...)
-				saveRecords()
-				return true
+		found := false
+		saveMerged(func(base []Record) []Record {
+			out := make([]Record, 0, len(base))
+			for _, r := range base {
+				if r.ID == id {
+					found = true
+					continue
+				}
+				out = append(out, r)
 			}
-		}
-		return false
+			return out
+		})
+		return found
 	})
 
 	w.Bind("dbGetPath", func() string {
@@ -501,7 +538,7 @@ mark{background:#fef08a;border-radius:2px}
 </head>
 <body>
 <div class="topbar">
-  <h1>📋 인수인계 관리 [JC01]</h1><span style="font-size:10px;color:#64b5f6;background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:4px;font-weight:400;letter-spacing:0.5px">v1.4.16</span>
+  <h1>📋 인수인계 관리 [JC01]</h1><span style="font-size:10px;color:#64b5f6;background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:4px;font-weight:400;letter-spacing:0.5px">v1.4.17</span>
   <span class="badge" id="tbadge">0건</span>
   <span id="netbadge" onclick="showNetInfo()" style="font-size:11px;padding:2px 8px;border-radius:99px;cursor:pointer;color:#f87171" title="확인 중...">●</span>
   <div class="spacer"></div>

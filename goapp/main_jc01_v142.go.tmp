@@ -357,6 +357,11 @@ func main() {
 
 	w = webview.NewWithOptions(webview.WebViewOptions{
 		Debug: false,
+		// 버전과 무관한 고정 데이터 폴더. 지정하지 않으면 WebView2가
+		// %AppData%\<exe 파일명>을 쓰는데, 버전 올릴 때 exe 파일명이
+		// 바뀌면 메모(localStorage)가 딴 폴더로 새로 시작돼 사라진 것처럼
+		// 보인다. 여기 고정해서 버전이 바뀌어도 메모가 유지되게 한다.
+		DataPath: filepath.Join(getDataDir(), "webview2"),
 		WindowOptions: webview.WindowOptions{
 			Title:  "인수인계 관리",
 			Width:  1280,
@@ -496,7 +501,7 @@ mark{background:#fef08a;border-radius:2px}
 </head>
 <body>
 <div class="topbar">
-  <h1>📋 인수인계 관리 [JC01]</h1><span style="font-size:10px;color:#64b5f6;background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:4px;font-weight:400;letter-spacing:0.5px">v1.4.13</span>
+  <h1>📋 인수인계 관리 [JC01]</h1><span style="font-size:10px;color:#64b5f6;background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:4px;font-weight:400;letter-spacing:0.5px">v1.4.14</span>
   <span class="badge" id="tbadge">0건</span>
   <span id="netbadge" onclick="showNetInfo()" style="font-size:11px;padding:2px 8px;border-radius:99px;cursor:pointer;color:#f87171" title="확인 중...">●</span>
   <div class="spacer"></div>

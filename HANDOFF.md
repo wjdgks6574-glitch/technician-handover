@@ -1,6 +1,6 @@
 # 인수인계 관리 프로그램 - 작업 인수인계 문서
 
-## 현재 버전: v1.4.13
+## 현재 버전: v1.4.14
 
 Go + WebView2 기반 Windows 데스크톱 앱. JC01(1동)/JC02(2동) 두 변형이 거의 동일한
 소스 구조를 공유하며, 각각 별도의 .exe로 빌드됨.
@@ -38,13 +38,13 @@ cd goapp
 cp main_jc01_v142.go.tmp main.go
 gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.13.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.14.exe .
 
 # JC02
 cp main_jc02_v142.go.tmp main.go
 gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC02_v1.4.13.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC02_v1.4.14.exe .
 ```
 
 **주의**: `-ldflags`에 `-s -w`를 넣지 마세요. 심볼 제거(압축)가 백신 오탐의
@@ -149,6 +149,13 @@ ID 대역을 나눴습니다.
 - 테이블과 달력 사이에 위치, `localStorage` 기반 (서버 저장 아님, PC별 개인 메모)
 - JC01/JC02는 저장 키가 다름 (`hk_memo` vs `hk_memo_jc02`) — 같은 PC에
   두 exe를 다 설치해도 메모가 안 섞임
+- **WebView2 데이터 폴더 고정 (v1.4.14)**: `localStorage`는 WebView2 사용자
+  데이터 폴더 안에 저장되는데, `DataPath`를 지정하지 않으면 라이브러리가
+  기본값으로 `%AppData%\<exe 파일명>`을 쓴다. 버전 올릴 때 exe 파일명이
+  바뀌면 폴더도 바뀌어 **메모가 매번 초기화된 것처럼 보이는 문제**가 있었다.
+  `main()`에서 `DataPath: filepath.Join(getDataDir(), "webview2")`로 버전과
+  무관하게 고정해 해결했다 (이후 버전 올려도 메모 유지). 단, 이 수정을 처음
+  배포하는 순간엔 옛 폴더의 메모가 새 폴더로 이관되지 않아 한 번은 비워진다.
 
 ---
 

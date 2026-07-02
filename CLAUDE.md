@@ -29,7 +29,7 @@ goapp/main_jc02_v142.go.tmp    JC02 소스 (정본)
 
 ## 🔨 빌드 & 버전
 
-현재 버전: **v1.4.20**
+현재 버전: **v1.4.21**
 
 ```bash
 export GOPATH=$HOME/go && export PATH=$PATH:/usr/local/go/bin
@@ -37,13 +37,13 @@ cd goapp
 # JC01 (JC02는 파일명만 jc02로)
 cp main_jc01_v142.go.tmp main.go && gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.20.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.21.exe .
 rm -f main.go
 ```
 
 - `-ldflags`에 **`-s -w` 넣지 말 것** (백신 오탐 원인).
 - **빌드해서 전달할 때마다 버전을 올린다.** 소스 2개 HTML의 `v1.4.X` 문자열
-  (각 파일 557번째 줄)과 이 문서·`HANDOFF.md`의 버전도 함께 바꾼다.
+  (각 파일 578번째 줄)과 이 문서·`HANDOFF.md`의 버전도 함께 바꾼다.
 
 ## ⚠️ 두 소스는 997줄이 동일, 딱 13곳만 다르다
 
@@ -52,30 +52,32 @@ rm -f main.go
 확인은 `diff main_jc01_v142.go.tmp main_jc02_v142.go.tmp` 한 줄이면 된다 —
 두 파일을 각각 Read 하지 말 것.
 
-다른 곳 (JC01 → JC02 기준 라인번호, v1.4.20 시점):
+다른 곳 (JC01 → JC02 기준 라인번호, v1.4.21 시점):
 | 줄 | JC01 | JC02 |
 |----|------|------|
-| 251 | 주석 "JC01은 100000번대" | "JC02는 200000번대" |
-| 254 | `max := 100000` | `max := 200000` |
-| 256 | `r.ID < 200000` | `r.ID < 300000` |
-| 371 | `...\1동\Pending Item&지속관리` | `...\CELL_MEE_..\P10 Cell Sorter` (파츠폴더) |
-| 382 | `"JC_1 Sorter 필요 Parts"` | `"JC_2 Sorter 필요 Parts2"` (파츠파일명) |
-| 557 | `[JC01]` (제목) | `[JC02]` |
-| 570-571 | `JC01 selected` | `JC02 selected` |
-| 624 | `<option value="JC02">` | `<option value="JC02" selected>` |
-| 682 | `memoSave('hk_memo',…)` | `memoSave('hk_memo_jc02',…)` |
-| 688 | `memoLoad('hk_memo')` | `memoLoad('hk_memo_jc02')` |
-| 806 | `fD.value='JC01'` | `='JC02'` |
-| 1007 | `... || 'JC01'` | `... || 'JC02'` |
+| 252 | 주석 "JC01은 100000번대" | "JC02는 200000번대" |
+| 255 | `max := 100000` | `max := 200000` |
+| 257 | `r.ID < 200000` | `r.ID < 300000` |
+| 387 | `...\1동\Pending Item&지속관리` | `...\CELL_MEE_..\P10 Cell Sorter` (파츠폴더) |
+| 398 | `"JC_1 Sorter 필요 Parts"` | `"JC_2 Sorter 필요 Parts2"` (파츠파일명) |
+| 578 | `[JC01]` (제목) | `[JC02]` |
+| 591-592 | `JC01 selected` | `JC02 selected` |
+| 645 | `<option value="JC02">` | `<option value="JC02" selected>` |
+| 703 | `memoSave('hk_memo',…)` | `memoSave('hk_memo_jc02',…)` |
+| 709 | `memoLoad('hk_memo')` | `memoLoad('hk_memo_jc02')` |
+| 827 | `fD.value='JC01'` | `='JC02'` |
+| 1042 | `... || 'JC01'` | `... || 'JC02'` |
 
 ## 🗂 데이터 모델 (Record)
 
 ```go
 type Record struct {
-    ID int; Date, Equip, Worker, Category, Content, Dong string
-}  // json 태그: id/date/equip/worker/category/content/dong
+    ID int; Date, Equip, Worker, Category, Content, Dong string; Flag bool
+}  // json: id/date/equip/worker/content/category/dong/flag(omitempty)
 ```
 - `ID`는 **정수** (문자열로 절대 바꾸지 말 것 — WebView2 바인딩 의존).
+- **정렬(메인 목록)**: `flag` 먼저(켜진 게 최상단) → 날짜 내림 → id 내림.
+  `flag`는 행별 ⚑ 버튼으로 토글, `dbSetFlag(id,flag)`가 saveMerged로 DB에 저장(공유).
 - **ID 대역 분리**: JC01 = `100000`번대(100001~199999), JC02 = `200000`번대.
   `nextID()`는 자기 동 대역 안에서만 최댓값을 찾고, `migrateIDOffsets()`가
   옛 순차 ID를 시작 시 자동 이관한다. 대역이 겹치면 안 됨.
@@ -91,12 +93,12 @@ type Record struct {
 | 39 `getDataDir` · 50 `getNetworkDir` | 경로 |
 | 57 `readWithTimeout` · 87 `writeWithTimeout` | 타임아웃 IO |
 | 143 `migrateEquipNames` · 159 `migrateIDOffsets` | 마이그레이션 |
-| 178 `loadRecords` · 222 `saveRecords` | 데이터 로직 |
-| 235 `saveMerged` · 253 `nextID(rs)` | 저장 시 재읽기·델타 병합 / 채번 |
-| 268 `handleBind` | WebView2 바인딩 (dbGetAll/dbAdd/dbUpdate/dbDelete→saveMerged, memoSave/memoLoad) |
-| 370 `openPartsFileImpl` · 402 `maximizeWindow` | |
-| 408 `main` | WebView2 생성. `DataPath` 고정(getDataDir/webview2) |
-| 444 `buildHTML` | UI 전체 (HTML+CSS+JS, ~600줄) |
+| 179 `loadRecords` · 223 `saveRecords` | 데이터 로직 |
+| 236 `saveMerged` · 254 `nextID(rs)` | 저장 시 재읽기·델타 병합 / 채번 |
+| 269 `handleBind` | WebView2 바인딩 (dbGetAll/dbAdd/dbUpdate/dbDelete/dbSetFlag→saveMerged, memoSave/memoLoad) |
+| 386 `openPartsFileImpl` · 418 `maximizeWindow` | |
+| 424 `main` | WebView2 생성. `DataPath` 고정(getDataDir/webview2) |
+| 460 `buildHTML` | UI 전체 (HTML+CSS+JS, ~600줄) |
 
 ## 🚫 회귀 방지 (HANDOFF의 과거 사건 요약 — 상세는 HANDOFF.md)
 

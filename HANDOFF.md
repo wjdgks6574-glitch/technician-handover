@@ -1,6 +1,6 @@
 # 인수인계 관리 프로그램 - 작업 인수인계 문서
 
-## 현재 버전: v1.4.20
+## 현재 버전: v1.4.21
 
 Go + WebView2 기반 Windows 데스크톱 앱. JC01(1동)/JC02(2동) 두 변형이 거의 동일한
 소스 구조를 공유하며, 각각 별도의 .exe로 빌드됨.
@@ -38,13 +38,13 @@ cd goapp
 cp main_jc01_v142.go.tmp main.go
 gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.20.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.21.exe .
 
 # JC02
 cp main_jc02_v142.go.tmp main.go
 gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC02_v1.4.20.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC02_v1.4.21.exe .
 ```
 
 **주의**: `-ldflags`에 `-s -w`를 넣지 마세요. 심볼 제거(압축)가 백신 오탐의
@@ -96,6 +96,7 @@ type Record struct {
     Category string `json:"category"`
     Content  string `json:"content"`
     Dong     string `json:"dong"`
+    Flag     bool   `json:"flag,omitempty"`
 }
 ```
 ID는 **정수**입니다. v1.5.x 때 문자열 ID(`legacy-405` 형식)로 바꿨다가
@@ -164,6 +165,16 @@ ID 대역을 나눴습니다.
   주기적으로 대조 확인 필요 (v1.4.11 때 ATW#21~52가 목록에서 통째로
   빠져있던 걸 뒤늦게 발견한 적 있음 — `initial_data_v142.json`을 까보고
   실제 존재하는 `equip` 값과 드롭다운 목록을 비교하는 습관 들이세요).
+
+### 목록 정렬 & 플래그 (v1.4.21)
+- **메인 목록 정렬**: `flag`(켜진 것 최상단) → **날짜 내림차순** → **id 내림차순**.
+  (`applyFilter`의 `fil.sort`. CSV 내보내기는 날짜 내림→id 내림, flag 무관.)
+- **플래그(⚑) 기능**: 행마다 ⚑ 버튼(`.fc-flag`/`.flagbtn`). 클릭하면 그 레코드가
+  **최상단 고정**(빨강 표시 + 좌측 빨강 바 `.frow.flagged`). 상태는 `Record.Flag`로
+  **DB에 공유 저장** — `dbSetFlag(id,flag)`가 `saveMerged`로 기록(같은 동 다른 PC와
+  공유, 서버에도 남음). `toggleFlag`는 `all`을 낙관적으로 갱신 후 `applyFilter`로
+  재정렬하고 백그라운드로 `dbSetFlag` 호출. `Flag`는 `omitempty`라 꺼진 레코드엔
+  json에 안 남아 하위호환. `dbUpdate`는 flag를 안 건드려 편집해도 플래그 유지.
 
 ### 새 항목 모달 기본값 (v1.4.10)
 - 동: 현재 화면 필터의 동

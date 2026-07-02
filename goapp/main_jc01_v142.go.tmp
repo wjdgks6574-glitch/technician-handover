@@ -27,6 +27,7 @@ type Record struct {
 	Category string `json:"category"`
 	Content  string `json:"content"`
 	Dong     string `json:"dong"`
+	Flag     bool   `json:"flag,omitempty"`
 }
 
 var dataFile string    // 네트워크 주 저장소 경로
@@ -333,6 +334,21 @@ func handleBind(w webview.WebView) {
 		return found
 	})
 
+	w.Bind("dbSetFlag", func(id int, flag bool) bool {
+		found := false
+		saveMerged(func(base []Record) []Record {
+			for i := range base {
+				if base[i].ID == id {
+					base[i].Flag = flag
+					found = true
+					break
+				}
+			}
+			return base
+		})
+		return found
+	})
+
 	w.Bind("dbGetPath", func() string {
 		status := "네트워크 저장소 연결됨"
 		if !networkOK {
@@ -485,6 +501,11 @@ select{padding:6px 8px;border:1px solid #cbd5e0;border-radius:6px;font-size:12px
 .frow:hover{background:#ebf8ff}
 .frow.sel{background:#bee3f8}
 .fc{padding:8px 10px;font-size:12px;display:flex;align-items:center;justify-content:center;min-width:0}
+.fc-flag{flex:0 0 30px;width:30px;padding:0}
+.flagbtn{background:none;border:none;cursor:pointer;font-size:14px;color:#cbd5e0;padding:2px 4px;line-height:1;border-radius:4px}
+.flagbtn:hover{background:#edf2f7}
+.flagbtn.on{color:#e53e3e}
+.frow.flagged{box-shadow:inset 3px 0 0 #e53e3e}
 .fc-dong{flex:0 0 52px;width:52px}
 .dong-badge{font-size:10px;color:#2d4a7a;background:#e8edf4;padding:2px 6px;border-radius:4px;font-weight:600}
 .fc-d{flex:0 0 68px;width:68px;color:#4a5568;white-space:nowrap}
@@ -554,7 +575,7 @@ mark{background:#fef08a;border-radius:2px}
 </head>
 <body>
 <div class="topbar">
-  <h1>📋 인수인계 관리 [JC01]</h1><span style="font-size:10px;color:#64b5f6;background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:4px;font-weight:400;letter-spacing:0.5px">v1.4.20</span>
+  <h1>📋 인수인계 관리 [JC01]</h1><span style="font-size:10px;color:#64b5f6;background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:4px;font-weight:400;letter-spacing:0.5px">v1.4.21</span>
   <span class="badge" id="tbadge">0건</span>
   <span id="netbadge" onclick="showNetInfo()" style="font-size:11px;padding:2px 8px;border-radius:99px;cursor:pointer;color:#f87171" title="확인 중...">●</span>
   <div class="spacer"></div>
@@ -584,7 +605,7 @@ mark{background:#fef08a;border-radius:2px}
     <div class="cntbar" id="cntbar"></div>
     <div class="tw">
       <div class="fhead">
-        <div class="fc fc-dong">동</div><div class="fc fc-d">날짜</div><div class="fc fc-e">설비</div>
+        <div class="fc fc-flag"></div><div class="fc fc-dong">동</div><div class="fc fc-d">날짜</div><div class="fc fc-e">설비</div>
         <div class="fc fc-w">근무자</div><div class="fc fc-c">구분</div><div class="fc fc-ct th-l">내용</div>
       </div>
       <div id="tb"></div>
@@ -869,7 +890,11 @@ function applyFilter(){
     if(q&&!(r.content+r.equip+r.worker+r.category+r.date+(r.dong||'')).toLowerCase().includes(q))return false;
     return true;
   });
-  fil.sort((a,b)=>b.date.localeCompare(a.date));
+  fil.sort((a,b)=>{
+    if((b.flag?1:0)!==(a.flag?1:0)) return (b.flag?1:0)-(a.flag?1:0);
+    if(b.date!==a.date) return b.date.localeCompare(a.date);
+    return b.id-a.id;
+  });
   renderTable(); updateBadge(); renderCal();
 }
 
@@ -888,7 +913,8 @@ let shown=0, curQ='';
 function rowHTML(r){
   const bg=EBG[r.equip]||'#e2e8f0', fg=EFG[r.equip]||'#4a5568';
   const pv=r.content;
-  return '<div class="frow" id="R'+r.id+'" onclick="rowClick('+r.id+')" oncontextmenu="rowCtx(event,'+r.id+')">'
+  return '<div class="frow'+(r.flag?' flagged':'')+'" id="R'+r.id+'" onclick="rowClick('+r.id+')" oncontextmenu="rowCtx(event,'+r.id+')">'
+    +'<div class="fc fc-flag"><button class="flagbtn'+(r.flag?' on':'')+'" onclick="toggleFlag(event,'+r.id+')" title="최상단 고정">⚑</button></div>'
     +'<div class="fc fc-dong"><span class="dong-badge">'+(r.dong||'JC01')+'</span></div>'
     +'<div class="fc fc-d">'+fmtDate(r.date)+'</div>'
     +'<div class="fc fc-e"><span class="eb" style="background:'+bg+';color:'+fg+'">'+esc(r.equip)+'</span></div>'
@@ -920,6 +946,15 @@ function renderTable(){
   // 화면이 찰 때까지(또는 다 그릴 때까지) 미리 채운다.
   let guard=0;
   while(tw && shown<fil.length && tw.scrollHeight<=tw.clientHeight && guard++<100) renderMore();
+}
+
+async function toggleFlag(e,id){
+  e.stopPropagation();
+  const r=all.find(x=>x.id===id);
+  if(!r) return;
+  r.flag=!r.flag;          // 낙관적 갱신: 즉시 최상단으로
+  applyFilter();
+  await dbSetFlag(id,r.flag);
 }
 
 function rowClick(id){
@@ -1072,7 +1107,7 @@ function viewFull(r){
 
 function exportCSV(){
   const rows=[['동','날짜','설비','근무자','구분','내용']];
-  [...all].sort((a,b)=>b.date.localeCompare(a.date))
+  [...all].sort((a,b)=> b.date!==a.date ? b.date.localeCompare(a.date) : b.id-a.id)
     .forEach(r=>rows.push([r.dong||'JC01',r.date,r.equip,r.worker,r.category,r.content]));
   const csv=rows.map(row=>row.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\r\n');
   const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});

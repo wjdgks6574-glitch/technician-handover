@@ -1,6 +1,6 @@
 # 인수인계 관리 프로그램 - 작업 인수인계 문서
 
-## 현재 버전: v1.4.15
+## 현재 버전: v1.4.16
 
 Go + WebView2 기반 Windows 데스크톱 앱. JC01(1동)/JC02(2동) 두 변형이 거의 동일한
 소스 구조를 공유하며, 각각 별도의 .exe로 빌드됨.
@@ -38,13 +38,13 @@ cd goapp
 cp main_jc01_v142.go.tmp main.go
 gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.15.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.16.exe .
 
 # JC02
 cp main_jc02_v142.go.tmp main.go
 gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC02_v1.4.15.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC02_v1.4.16.exe .
 ```
 
 **주의**: `-ldflags`에 `-s -w`를 넣지 마세요. 심볼 제거(압축)가 백신 오탐의
@@ -112,6 +112,16 @@ ID 대역을 나눴습니다.
 `<div>` + CSS Flexbox 구조로 완전히 교체했습니다 (v1.4.9).
 `.frow`(행), `.fc-dong/.fc-d/.fc-e/.fc-w/.fc-c`(고정폭 칸),
 `.fc-ct`(내용 칸, `flex:1`로 남는 공간 전부 차지) 구조를 유지하세요.
+
+**가상 스크롤 / 점진적 렌더 (v1.4.16)**: JC02 데이터가 9천 건대로 늘면서
+`renderTable`이 필터 결과 전체를 `innerHTML`로 한 번에 그리다 보니 메인 화면
+렉이 심했다(1만 건 × 6칸 ≈ 수만 DOM 노드). 이제 `renderTable`은 초기화만
+하고, `RCHUNK`(60)개씩 `renderMore()`가 `insertAdjacentHTML('beforeend')`로
+이어붙인다. `.tw`(스크롤 컨테이너) 스크롤이 하단 300px 이내로 오면 다음 묶음을
+로드. 필터/검색/추가/삭제 시 `applyFilter()`가 첫 묶음부터 다시 그린다. 행
+높이가 가변(`.pv` 최대 146px)이라 고정높이 윈도잉 대신 이 방식을 택했다.
+행 선택(`rowClick`)은 `all` 데이터 기반이라 미렌더 행이 있어도 문제없다.
+**전량 렌더(`fil.map(...).join('')`)로 되돌리지 말 것 — 렉 재발.**
 
 ### 네트워크 상태 배지
 - 초록/빨강 점(`#netbadge`)이 상단바에 있음

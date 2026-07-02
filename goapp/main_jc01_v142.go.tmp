@@ -501,7 +501,7 @@ mark{background:#fef08a;border-radius:2px}
 </head>
 <body>
 <div class="topbar">
-  <h1>📋 인수인계 관리 [JC01]</h1><span style="font-size:10px;color:#64b5f6;background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:4px;font-weight:400;letter-spacing:0.5px">v1.4.15</span>
+  <h1>📋 인수인계 관리 [JC01]</h1><span style="font-size:10px;color:#64b5f6;background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:4px;font-weight:400;letter-spacing:0.5px">v1.4.16</span>
   <span class="badge" id="tbadge">0건</span>
   <span id="netbadge" onclick="showNetInfo()" style="font-size:11px;padding:2px 8px;border-radius:99px;cursor:pointer;color:#f87171" title="확인 중...">●</span>
   <div class="spacer"></div>
@@ -754,6 +754,11 @@ async function init(){
   updateEquipFilter();
   document.getElementById('fdong').addEventListener('change', updateEquipModal);
   updateEquipModal();
+  // 스크롤이 하단 근처에 오면 다음 묶음을 렌더 (가상 스크롤)
+  const tw=document.querySelector('.tw');
+  if(tw) tw.addEventListener('scroll',()=>{
+    if(shown<fil.length && tw.scrollTop+tw.clientHeight>=tw.scrollHeight-300) renderMore();
+  });
   applyFilter(); renderCal(); loadMemo();
 }
 
@@ -822,25 +827,46 @@ function hl(s,q){
   return esc(s).replace(re,m=>'<mark>'+m+'</mark>');
 }
 
-function renderTable(){
-  const q=document.getElementById('q').value.trim().toLowerCase();
+// 가상 스크롤(점진적 렌더): 필터 결과(fil)를 한 번에 다 그리면 1만 건에서
+// 수만 개 DOM 노드가 생겨 렉이 걸린다. RCHUNK개씩만 이어붙이고, 스크롤이
+// 하단에 가까워지면 다음 묶음을 렌더한다. 초기 렌더는 수십 건뿐이라 즉시 뜬다.
+const RCHUNK=60;
+let shown=0, curQ='';
+function rowHTML(r){
+  const bg=EBG[r.equip]||'#e2e8f0', fg=EFG[r.equip]||'#4a5568';
+  const pv=r.content;
+  return '<div class="frow" id="R'+r.id+'" onclick="rowClick('+r.id+')" oncontextmenu="rowCtx(event,'+r.id+')">'
+    +'<div class="fc fc-dong"><span class="dong-badge">'+(r.dong||'JC01')+'</span></div>'
+    +'<div class="fc fc-d">'+fmtDate(r.date)+'</div>'
+    +'<div class="fc fc-e"><span class="eb" style="background:'+bg+';color:'+fg+'">'+esc(r.equip)+'</span></div>'
+    +'<div class="fc fc-w">'+esc(r.worker)+'</div>'
+    +'<div class="fc fc-c"><span class="chip c'+r.category.replace(/\s/g,'')+'">'+esc(r.category)+'</span></div>'
+    +'<div class="fc fc-ct"><div class="pv">'+hl(pv,curQ)+'</div></div>'
+    +'</div>';
+}
+function renderMore(){
   const tb=document.getElementById('tb');
+  const end=Math.min(shown+RCHUNK, fil.length);
+  let html='';
+  for(let i=shown;i<end;i++) html+=rowHTML(fil[i]);
+  if(html) tb.insertAdjacentHTML('beforeend', html);
+  shown=end;
+}
+function renderTable(){
+  curQ=document.getElementById('q').value.trim().toLowerCase();
+  const tb=document.getElementById('tb');
+  const tw=document.querySelector('.tw');
+  shown=0; tb.innerHTML='';
   if(!fil.length){
     tb.innerHTML='<div style="text-align:center;padding:40px;color:#a0aec0">검색 결과가 없습니다</div>';
     return;
   }
-  tb.innerHTML=fil.map(r=>{
-    const bg=EBG[r.equip]||'#e2e8f0', fg=EFG[r.equip]||'#4a5568';
-    const pv=r.content;
-    return '<div class="frow" id="R'+r.id+'" onclick="rowClick('+r.id+')" oncontextmenu="rowCtx(event,'+r.id+')">'
-      +'<div class="fc fc-dong"><span class="dong-badge">'+(r.dong||'JC01')+'</span></div>'
-      +'<div class="fc fc-d">'+fmtDate(r.date)+'</div>'
-      +'<div class="fc fc-e"><span class="eb" style="background:'+bg+';color:'+fg+'">'+esc(r.equip)+'</span></div>'
-      +'<div class="fc fc-w">'+esc(r.worker)+'</div>'
-      +'<div class="fc fc-c"><span class="chip c'+r.category.replace(/\s/g,'')+'">'+esc(r.category)+'</span></div>'
-      +'<div class="fc fc-ct"><div class="pv">'+hl(pv,q)+'</div></div>'
-      +'</div>';
-  }).join('');
+  if(tw) tw.scrollTop=0;
+  renderMore();
+  // 뷰포트가 안 차면 스크롤바가 안 생겨 추가 로드가 트리거되지 않으므로,
+  // 화면이 찰 때까지(또는 다 그릴 때까지) 미리 채운다.
+  let guard=0;
+  while(tw && shown<fil.length && tw.scrollHeight<=tw.clientHeight && guard++<100) renderMore();
 }
 
 function rowClick(id){

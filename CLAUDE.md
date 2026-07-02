@@ -29,7 +29,7 @@ goapp/main_jc02_v142.go.tmp    JC02 소스 (정본)
 
 ## 🔨 빌드 & 버전
 
-현재 버전: **v1.4.15**
+현재 버전: **v1.4.16**
 
 ```bash
 export GOPATH=$HOME/go && export PATH=$PATH:/usr/local/go/bin
@@ -37,7 +37,7 @@ cd goapp
 # JC01 (JC02는 파일명만 jc02로)
 cp main_jc01_v142.go.tmp main.go && gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.15.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.16.exe .
 rm -f main.go
 ```
 
@@ -52,7 +52,7 @@ rm -f main.go
 확인은 `diff main_jc01_v142.go.tmp main_jc02_v142.go.tmp` 한 줄이면 된다 —
 두 파일을 각각 Read 하지 말 것.
 
-다른 곳 (JC01 → JC02 기준 라인번호, v1.4.15 시점):
+다른 곳 (JC01 → JC02 기준 라인번호, v1.4.16 시점):
 | 줄 | JC01 | JC02 |
 |----|------|------|
 | 225 | 주석 "JC01은 100000번대" | "JC02는 200000번대" |
@@ -66,7 +66,7 @@ rm -f main.go
 | 629 | `localStorage.setItem('hk_memo',…)` | `'hk_memo_jc02'` |
 | 635 | `getItem('hk_memo')` | `getItem('hk_memo_jc02')` |
 | 753 | `fD.value='JC01'` | `='JC02'` |
-| 926 | `... || 'JC01'` | `... || 'JC02'` |
+| 952 | `... || 'JC01'` | `... || 'JC02'` |
 
 ## 🗂 데이터 모델 (Record)
 
@@ -103,4 +103,7 @@ type Record struct {
 - 네트워크 상태는 `dbGetAll()` 응답에 실어 보냄. **별도 상태 전용 바인딩
   추가 금지** (dbGetPath 단독 호출이 WebView2에서 hang 재발 위험).
 - 무거운 렌더링 전 `requestAnimationFrame` 한 프레임 양보 유지(배지 리페인트).
+- **메인 목록은 가상 스크롤(점진적 렌더)** — `renderTable`이 `fil` 전량을
+  `innerHTML`로 그리지 말 것(1만 건 렉 원인). `RCHUNK`(60)씩 `renderMore()`로
+  이어붙이고 `.tw` 스크롤 하단에서 다음 묶음 로드. 전량 렌더로 되돌리지 말 것.
 - 헤드리스/유닛테스트 통과 ≠ Windows 실기 정상. 큰 변경은 실기 확인 필요.

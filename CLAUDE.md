@@ -29,7 +29,7 @@ goapp/main_jc02_v142.go.tmp    JC02 소스 (정본)
 
 ## 🔨 빌드 & 버전
 
-현재 버전: **v1.4.17**
+현재 버전: **v1.4.18**
 
 ```bash
 export GOPATH=$HOME/go && export PATH=$PATH:/usr/local/go/bin
@@ -37,7 +37,7 @@ cd goapp
 # JC01 (JC02는 파일명만 jc02로)
 cp main_jc01_v142.go.tmp main.go && gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.17.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.18.exe .
 rm -f main.go
 ```
 
@@ -52,7 +52,7 @@ rm -f main.go
 확인은 `diff main_jc01_v142.go.tmp main_jc02_v142.go.tmp` 한 줄이면 된다 —
 두 파일을 각각 Read 하지 말 것.
 
-다른 곳 (JC01 → JC02 기준 라인번호, v1.4.17 시점):
+다른 곳 (JC01 → JC02 기준 라인번호, v1.4.18 시점):
 | 줄 | JC01 | JC02 |
 |----|------|------|
 | 251 | 주석 "JC01은 100000번대" | "JC02는 200000번대" |
@@ -66,7 +66,7 @@ rm -f main.go
 | 666 | `localStorage.setItem('hk_memo',…)` | `'hk_memo_jc02'` |
 | 672 | `getItem('hk_memo')` | `getItem('hk_memo_jc02')` |
 | 790 | `fD.value='JC01'` | `='JC02'` |
-| 989 | `... || 'JC01'` | `... || 'JC02'` |
+| 991 | `... || 'JC01'` | `... || 'JC02'` |
 
 ## 🗂 데이터 모델 (Record)
 

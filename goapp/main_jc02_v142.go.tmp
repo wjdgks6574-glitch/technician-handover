@@ -538,7 +538,7 @@ mark{background:#fef08a;border-radius:2px}
 </head>
 <body>
 <div class="topbar">
-  <h1>📋 인수인계 관리 [JC02]</h1><span style="font-size:10px;color:#64b5f6;background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:4px;font-weight:400;letter-spacing:0.5px">v1.4.17</span>
+  <h1>📋 인수인계 관리 [JC02]</h1><span style="font-size:10px;color:#64b5f6;background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:4px;font-weight:400;letter-spacing:0.5px">v1.4.18</span>
   <span class="badge" id="tbadge">0건</span>
   <span id="netbadge" onclick="showNetInfo()" style="font-size:11px;padding:2px 8px;border-radius:99px;cursor:pointer;color:#f87171" title="확인 중...">●</span>
   <div class="spacer"></div>
@@ -947,7 +947,8 @@ function updateBadge(){
 
 function renderCal(){
   document.getElementById('ctitle').textContent=calY+'년 '+calM+'월';
-  const ds=new Set(all.map(r=>r.date)), td=today();
+  const cd=document.getElementById('fD').value;
+  const ds=new Set(all.filter(r=>!cd||(r.dong||'JC01')===cd).map(r=>r.date)), td=today();
   const fd=new Date(calY,calM-1,1).getDay(), dm=new Date(calY,calM,0).getDate();
   let h='';
   for(let i=0;i<fd;i++)h+='<div class="day em"></div>';
@@ -963,7 +964,8 @@ function chM(d){calM+=d;if(calM<1){calM=12;calY--;}if(calM>12){calM=1;calY++;}re
 function selDate2(ds){selDate=ds;renderCal();renderDetail(ds);}
 
 function renderDetail(ds){
-  const dr=all.filter(r=>r.date===ds).sort((a,b)=>a.category.localeCompare(b.category));
+  const cd=document.getElementById('fD').value;
+  const dr=all.filter(r=>r.date===ds&&(!cd||(r.dong||'JC01')===cd)).sort((a,b)=>a.category.localeCompare(b.category));
   document.getElementById('dhdr').textContent=ds+'  ('+dr.length+'건)';
   if(!dr.length){
     document.getElementById('dbody').innerHTML='<div class="es">🕍<br>이 날짜의 기록이 없습니다</div>';

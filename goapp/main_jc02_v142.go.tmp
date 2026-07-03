@@ -630,13 +630,7 @@ select{padding:6px 8px;border:1px solid #cbd5e0;border-radius:6px;font-size:12px
 .day.sd{background:#3b82f6;color:#fff}.day.sd::after{background:#fff}
 .day.td2{background:#3b82f6;color:#fff;font-weight:700}.day.td2::after{background:#fff}
 .day.em{cursor:default}.day.em:hover{background:none}
-.det-card{background:#fff;border-radius:10px;border:1px solid #e2e8f0;flex:1;overflow:hidden;display:flex;flex-direction:column}
-.det-hdr{background:#1e3a5f;color:#fff;padding:8px 12px;font-size:12px;font-weight:600;flex-shrink:0}
-.det-body{flex:1;overflow-y:auto;padding:6px}
-.di{background:#f8fafc;border-radius:6px;margin-bottom:6px;overflow:hidden;border:1px solid #e2e8f0}
-.di-h{display:flex;align-items:center;gap:5px;padding:5px 8px;flex-wrap:wrap}
-.di-b{padding:6px 8px;font-size:11px;color:#4a5568;line-height:1.6;white-space:pre-wrap;word-break:break-all}
-.es{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:#a0aec0;gap:6px;text-align:center;font-size:12px;line-height:1.6}
+.cal-hint{padding:6px 10px;font-size:10px;color:#a0aec0;text-align:center;border-top:1px solid #edf2f7}
 .mbg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100;align-items:center;justify-content:center}
 .mbg.open{display:flex}
 .modal{background:#fff;border-radius:12px;padding:22px;width:500px;max-width:95vw;box-shadow:0 20px 60px rgba(0,0,0,.3)}
@@ -665,7 +659,7 @@ mark{background:#fef08a;border-radius:2px}
 </head>
 <body>
 <div class="topbar">
-  <h1>📋 인수인계 관리 [JC02]</h1><span style="font-size:10px;color:#64b5f6;background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:4px;font-weight:400;letter-spacing:0.5px">v1.4.26</span>
+  <h1>📋 인수인계 관리 [JC02]</h1><span style="font-size:10px;color:#64b5f6;background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:4px;font-weight:400;letter-spacing:0.5px">v1.4.27</span>
   <span class="badge" id="tbadge">0건</span>
   <span id="netbadge" onclick="showNetInfo()" style="font-size:11px;padding:2px 8px;border-radius:99px;cursor:pointer;color:#f87171" title="확인 중...">●</span>
   <div class="spacer"></div>
@@ -715,12 +709,7 @@ mark{background:#fef08a;border-radius:2px}
       </div>
       <div class="dow"><span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span></div>
       <div class="days" id="days"></div>
-    </div>
-    <div class="det-card">
-      <div class="det-hdr" id="dhdr">날짜를 선택하세요</div>
-      <div class="det-body" id="dbody">
-        <div class="es">📅<br>달력에서 날짜를 클릭하면<br>해당일 내용이 표시됩니다</div>
-      </div>
+      <div class="cal-hint">날짜를 클릭하면 목록이 그 날짜만 표시됩니다</div>
     </div>
   </div>
 </div>
@@ -956,7 +945,6 @@ async function showNetInfo(){
     all=parsed.records||[];
     applyNetInfo(parsed);
     applyFilter();
-    if(selDate) renderDetail(selDate);
   }catch(e){
     applyNetInfo(null);
   }
@@ -975,6 +963,7 @@ function applyFilter(){
   const cat=document.getElementById('fC').value;
   const dong=document.getElementById('fD').value;
   fil=all.filter(r=>{
+    if(selDate&&r.date!==selDate)return false;   // 달력에서 클릭한 날짜 필터
     if(selectedEquips.size>0 && !selectedEquips.has(r.equip))return false;
     if(cat&&r.category!==cat)return false;
     if(dong&&(r.dong||'JC01')!==dong)return false;
@@ -1056,15 +1045,11 @@ async function toggleFlag(e,id){
 }
 
 function rowClick(id){
+  // 행 클릭은 선택 표시(하이라이트)만 한다. (예전엔 달력 밑 상세 패널을
+  // 띄웠으나, 상세 패널을 없애고 날짜 필터는 달력에서만 거는 방식으로 바뀜)
   document.querySelectorAll('.frow').forEach(t=>t.classList.remove('sel'));
   const row=document.getElementById('R'+id);
   if(row)row.classList.add('sel');
-  const r=all.find(r=>r.id===id);
-  if(r){
-    const y=parseInt(r.date.slice(0,4)),m=parseInt(r.date.slice(5,7));
-    if(y!==calY||m!==calM){calY=y;calM=m;}
-    selDate=r.date; renderCal(); renderDetail(r.date);
-  }
 }
 
 function rowCtx(e,id){
@@ -1092,14 +1077,23 @@ async function ctxDel(){
   const ok=await dbDelete(ctxId);
   if(!ok){alert('다른 동의 항목은 삭제할 수 없습니다.');return;}
   all=all.filter(r=>r.id!==ctxId);
-  applyFilter(); if(selDate)renderDetail(selDate);
+  applyFilter();
 }
 
 function updateBadge(){
   const t=all.length,s=fil.length;
   document.getElementById('tbadge').textContent=t+'건';
-  document.getElementById('cntbar').textContent=s<t?s+'건 표시 중 (전체 '+t+'건)':'전체 '+t+'건';
+  const txt=s<t?s+'건 표시 중 (전체 '+t+'건)':'전체 '+t+'건';
+  const cb=document.getElementById('cntbar');
+  if(selDate){
+    // 날짜 필터가 켜져 있으면 파란 칩으로 표시하고 ✕로 해제할 수 있게 한다.
+    cb.innerHTML='<span style="background:#3b82f6;color:#fff;padding:2px 8px;border-radius:99px;font-weight:600;margin-right:6px">📅 '
+      +selDate+' <span onclick="clearDateFilter()" style="cursor:pointer;margin-left:2px">✕</span></span>'+txt;
+  }else{
+    cb.textContent=txt;
+  }
 }
+function clearDateFilter(){selDate=null;applyFilter();}
 
 function renderCal(){
   document.getElementById('ctitle').textContent=calY+'년 '+calM+'월';
@@ -1119,28 +1113,10 @@ function renderCal(){
 }
 
 function chM(d){calM+=d;if(calM<1){calM=12;calY--;}if(calM>12){calM=1;calY++;}renderCal();}
-function selDate2(ds){selDate=ds;renderCal();renderDetail(ds);}
-
-function renderDetail(ds){
-  const cd=document.getElementById('fD').value;
-  const dr=all.filter(r=>r.date===ds&&(!cd||(r.dong||'JC01')===cd)).sort((a,b)=>a.category.localeCompare(b.category));
-  document.getElementById('dhdr').textContent=ds+'  ('+dr.length+'건)';
-  if(!dr.length){
-    document.getElementById('dbody').innerHTML='<div class="es">🕍<br>이 날짜의 기록이 없습니다</div>';
-    return;
-  }
-  document.getElementById('dbody').innerHTML=dr.map(r=>{
-    const bg=EBG[r.equip]||'#e2e8f0',fg=EFG[r.equip]||'#4a5568';
-    return '<div class="di">'
-      +'<div class="di-h">'
-      +'<span class="chip c'+r.category.replace(/\s/g,'')+'">'+esc(r.category)+'</span>'
-      +'<span class="eb" style="background:'+bg+';color:'+fg+';font-size:10px">'+esc(r.equip)+'</span>'
-      +'<span style="margin-left:auto;font-size:10px;color:#718096">'+esc(r.worker)+'</span>'
-      +'</div>'
-      +'<div class="di-b">'+esc(r.content)+'</div>'
-      +'</div>';
-  }).join('');
-}
+// 달력 날짜 클릭 = 메인 목록을 그 날짜만 표시하는 필터. 같은 날짜를 다시
+// 누르면 필터 해제(토글). applyFilter가 renderTable/updateBadge/renderCal을
+// 모두 다시 그리므로 여기서 renderCal을 따로 부르지 않는다.
+function selDate2(ds){selDate=(selDate===ds?null:ds);applyFilter();}
 
 function openModal(rec){
   editId=rec?rec.id:null;
@@ -1186,10 +1162,13 @@ async function save(){
     const raw=await dbAdd(date,equip,worker,cat,content,dong);
     all.push(JSON.parse(raw));
   }
-  closeModal(); applyFilter();
-  selDate=date;
+  closeModal();
+  // 저장한 항목이 목록에 바로 보이도록 날짜 필터는 해제하고, 달력만 그 달로
+  // 이동시킨다(해당 날짜에 점이 찍혀 보이게).
+  selDate=null;
   const y=parseInt(date.slice(0,4)),m=parseInt(date.slice(5,7));
-  calY=y;calM=m; renderCal(); renderDetail(date);
+  calY=y;calM=m;
+  applyFilter();
 }
 
 function viewFull(r){

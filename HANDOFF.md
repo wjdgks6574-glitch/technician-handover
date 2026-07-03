@@ -1,6 +1,6 @@
 # 인수인계 관리 프로그램 - 작업 인수인계 문서
 
-## 현재 버전: v1.4.26
+## 현재 버전: v1.4.27
 
 Go + WebView2 기반 Windows 데스크톱 앱. JC01(1동)/JC02(2동) 두 변형이 거의 동일한
 소스 구조를 공유하며, 각각 별도의 .exe로 빌드됨.
@@ -38,13 +38,13 @@ cd goapp
 cp main_jc01_v142.go.tmp main.go
 gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.26.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.27.exe .
 
 # JC02
 cp main_jc02_v142.go.tmp main.go
 gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC02_v1.4.26.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC02_v1.4.27.exe .
 ```
 
 **주의**: `-ldflags`에 `-s -w`를 넣지 마세요. 심볼 제거(압축)가 백신 오탐의
@@ -216,6 +216,22 @@ JC01/JC02가 같은 `records.json`을 공유하면서 상대 동 데이터를 �
 - **글자색은 항상 검은색 유지 (v1.4.23)** — 처음엔 `.frow.foreign .fc-ct .pv`에
   회색(`#a0aec0`) 글자색도 줬으나 가독성이 떨어져 제거. 상대 동 표시는 배경색
   차이만으로 하고 글자는 흐리게 하지 말 것.
+
+### 달력 날짜 = 목록 필터로 변경, 상세 패널 제거 (v1.4.27)
+예전엔 달력 밑에 상세 패널(`det-card`)이 있어서 날짜를 클릭하면 그 날짜의 기록을
+거기 카드로 보여줬다(`renderDetail`). 이걸 **없애고**, 달력 날짜 클릭을 **메인
+목록 필터**로 바꿨다.
+- `selDate2(ds)`: `selDate`를 토글(같은 날 다시 누르면 해제)하고 `applyFilter()` 호출.
+- `applyFilter`: `if(selDate&&r.date!==selDate)return false`로 그 날짜만 남긴다.
+  기존 검색어/구분/동/설비 필터와 **AND**로 함께 걸린다.
+- 활성 날짜 필터는 `cntbar`에 파란 칩(📅 날짜 ✕)으로 표시하고, ✕(`clearDateFilter`)
+  또는 달력에서 같은 날 재클릭으로 해제. 달력의 `.sd`(파란 배경) 하이라이트가 현재
+  필터 날짜를 가리킨다.
+- `rowClick`은 이제 행 선택 하이라이트만 한다(예전엔 상세 패널 띄우고 달력 이동).
+- `save()` 후엔 `selDate=null`로 날짜 필터를 풀어 방금 추가/수정한 항목이 목록에
+  바로 보이게 하고, 달력만 그 달로 이동시킨다.
+제거된 것: HTML `det-card` 블록, CSS `.det-card/.det-hdr/.det-body/.di/.di-h/.di-b/.es`,
+JS `renderDetail`. **상세 패널을 되살리지 말 것** — 날짜 열람은 목록 필터로 한다.
 
 ### 달력 요일/오늘 색상 (v1.4.26)
 `renderCal`에서 각 날짜의 `new Date(calY,calM-1,d).getDay()`로 요일을 계산해

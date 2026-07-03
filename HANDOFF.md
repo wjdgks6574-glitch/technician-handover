@@ -1,6 +1,6 @@
 # 인수인계 관리 프로그램 - 작업 인수인계 문서
 
-## 현재 버전: v1.4.25
+## 현재 버전: v1.4.26
 
 Go + WebView2 기반 Windows 데스크톱 앱. JC01(1동)/JC02(2동) 두 변형이 거의 동일한
 소스 구조를 공유하며, 각각 별도의 .exe로 빌드됨.
@@ -38,13 +38,13 @@ cd goapp
 cp main_jc01_v142.go.tmp main.go
 gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.25.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.26.exe .
 
 # JC02
 cp main_jc02_v142.go.tmp main.go
 gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC02_v1.4.25.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC02_v1.4.26.exe .
 ```
 
 **주의**: `-ldflags`에 `-s -w`를 넣지 마세요. 심볼 제거(압축)가 백신 오탐의
@@ -216,6 +216,15 @@ JC01/JC02가 같은 `records.json`을 공유하면서 상대 동 데이터를 �
 - **글자색은 항상 검은색 유지 (v1.4.23)** — 처음엔 `.frow.foreign .fc-ct .pv`에
   회색(`#a0aec0`) 글자색도 줬으나 가독성이 떨어져 제거. 상대 동 표시는 배경색
   차이만으로 하고 글자는 흐리게 하지 말 것.
+
+### 달력 요일/오늘 색상 (v1.4.26)
+`renderCal`에서 각 날짜의 `new Date(calY,calM-1,d).getDay()`로 요일을 계산해
+토요일엔 `sat`, 일요일엔 `sun` 클래스를 붙인다. CSS: `.day.sat{color:#2563eb}`
+(파랑 글자), `.day.sun{color:#e53e3e}`(빨강 글자). 오늘(`.td2`)은 파란
+배경(`#3b82f6`)+흰 글자로 바꿨다(예전엔 빨간 글자만). 오늘이 토/일과 겹쳐도
+배경색이 이겨야 하므로 CSS에서 `.day.td2`를 `.day.sat`/`.day.sun`보다 **뒤에**
+선언해 우선순위를 확보했다(클래스 조합의 CSS 우선순위는 스타일시트 선언 순서로
+정해짐 — 순서 바꾸지 말 것). 선택된 날짜(`.sd`)도 원래부터 파란 배경+흰 글자였음.
 
 ### 내용 전체보기 X 버튼이 안 닫히던 버그 (v1.4.24)
 `viewFull`의 닫기 버튼이 `onclick="this.closest('[style]').remove()"`로 되어

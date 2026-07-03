@@ -29,7 +29,7 @@ goapp/main_jc02_v142.go.tmp    JC02 소스 (정본)
 
 ## 🔨 빌드 & 버전
 
-현재 버전: **v1.4.25**
+현재 버전: **v1.4.26**
 
 ```bash
 export GOPATH=$HOME/go && export PATH=$PATH:/usr/local/go/bin
@@ -37,13 +37,13 @@ cd goapp
 # JC01 (JC02는 파일명만 jc02로)
 cp main_jc01_v142.go.tmp main.go && gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.25.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.26.exe .
 rm -f main.go
 ```
 
 - `-ldflags`에 **`-s -w` 넣지 말 것** (백신 오탐 원인).
 - **빌드해서 전달할 때마다 버전을 올린다.** 소스 2개 HTML의 `v1.4.X` 문자열
-  (각 파일 666번째 줄)과 이 문서·`HANDOFF.md`의 버전도 함께 바꾼다.
+  (각 파일 668번째 줄)과 이 문서·`HANDOFF.md`의 버전도 함께 바꾼다.
 - `go vet`는 로컬(리눅스)에서 `syscall.NewLazyDLL`, `buildHTML`의 Sprintf(`%`)를
   오탐한다 — 둘 다 예전부터 있던 노이즈. `GOOS=windows` 빌드가 통과하면 정상.
 
@@ -54,7 +54,7 @@ rm -f main.go
 확인은 `diff main_jc01_v142.go.tmp main_jc02_v142.go.tmp` 한 줄이면 된다 —
 두 파일을 각각 Read 하지 말 것.
 
-다른 곳 (JC01 → JC02 기준 라인번호, v1.4.25 시점):
+다른 곳 (JC01 → JC02 기준 라인번호, v1.4.26 시점):
 | 줄 | JC01 | JC02 |
 |----|------|------|
 | 306 | 주석 "JC01은 100000번대" | "JC02는 200000번대" |
@@ -63,13 +63,13 @@ rm -f main.go
 | 328 | `const myDong = "JC01"` | `= "JC02"` (Go 쓰기권한 동) |
 | 467 | `...\1동\Pending Item&지속관리` | `...\CELL_MEE_..\P10 Cell Sorter` (파츠폴더) |
 | 478 | `"JC_1 Sorter 필요 Parts"` | `"JC_2 Sorter 필요 Parts2"` (파츠파일명) |
-| 666 | `[JC01]` (제목) | `[JC02]` |
-| 679-680 | `JC01 selected` | `JC02 selected` |
-| 733 | `<option value="JC02">` | `<option value="JC02" selected>` |
-| 785 | `const MY_DONG='JC01'` | `='JC02'` (JS 쓰기권한 동) |
-| 792 | `memoSave('hk_memo',…)` | `memoSave('hk_memo_jc02',…)` |
-| 798 | `memoLoad('hk_memo')` | `memoLoad('hk_memo_jc02')` |
-| 916 | `fD.value='JC01'` | `='JC02'` |
+| 668 | `[JC01]` (제목) | `[JC02]` |
+| 681-682 | `JC01 selected` | `JC02 selected` |
+| 735 | `<option value="JC02">` | `<option value="JC02" selected>` |
+| 787 | `const MY_DONG='JC01'` | `='JC02'` (JS 쓰기권한 동) |
+| 794 | `memoSave('hk_memo',…)` | `memoSave('hk_memo_jc02',…)` |
+| 800 | `memoLoad('hk_memo')` | `memoLoad('hk_memo_jc02')` |
+| 918 | `fD.value='JC01'` | `='JC02'` |
 
 ## 🗂 데이터 모델 (Record)
 
@@ -141,4 +141,8 @@ type Record struct {
 - **내용 전체보기 X 버튼 (v1.4.24)** — `viewFull`의 닫기 버튼은 `this.closest('[style]')`로
   찾지 말 것: 버튼 자신도 `style` 속성이 있어 자기 자신이 매칭되어 지워지고 창은
   안 닫힌다. `.vfclose` 클래스로 찾아 `d.remove()`(오버레이 자체)를 호출해야 함.
+- **달력 요일/오늘 색 (v1.4.26)** — `renderCal`에서 날짜별 `getDay()`로 토요일은
+  `.sat`(파랑 글자), 일요일은 `.sun`(빨강 글자) 클래스를 붙인다. 오늘(`.td2`)은
+  파란 배경+흰 글자로 요일색보다 우선(CSS에서 `.td2`를 `.sat`/`.sun`보다 뒤에
+  선언해 우선순위 확보). 선택된 날짜(`.sd`)도 동일한 파란 배경+흰 글자.
 - 헤드리스/유닛테스트 통과 ≠ Windows 실기 정상. 큰 변경은 실기 확인 필요.

@@ -609,7 +609,7 @@ select{padding:6px 8px;border:1px solid #cbd5e0;border-radius:6px;font-size:12px
 .cClassification{background:#fed7aa;color:#7b341e}
 .eb{display:inline-block;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:600}
 .right{display:flex;flex-direction:column;width:270px;flex-shrink:0;gap:8px}
-.memo-card{width:250px;flex-shrink:0;background:#fffaf0;border:1px solid #f6ad55;border-radius:10px;display:flex;flex-direction:column;overflow:hidden}
+.memo-card{flex:1;min-height:120px;background:#fffaf0;border:1px solid #f6ad55;border-radius:10px;display:flex;flex-direction:column;overflow:hidden}
 .memo-hdr{background:#dd7c1e;color:#fff;padding:8px 12px;font-size:12px;font-weight:600}
 #memo-text{flex:1;width:100%;border:none;background:transparent;resize:none;padding:12px;font-family:'맑은 고딕',sans-serif;font-size:12px;line-height:1.6;outline:none;color:#5a4a3a}
 .memo-footer{padding:4px 12px 8px;font-size:10px;color:#c08a4a;text-align:right}
@@ -659,7 +659,7 @@ mark{background:#fef08a;border-radius:2px}
 </head>
 <body>
 <div class="topbar">
-  <h1>📋 인수인계 관리 [JC01]</h1><span style="font-size:10px;color:#64b5f6;background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:4px;font-weight:400;letter-spacing:0.5px">v1.4.27</span>
+  <h1>📋 인수인계 관리 [JC01]</h1><span style="font-size:10px;color:#64b5f6;background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:4px;font-weight:400;letter-spacing:0.5px">v1.4.28</span>
   <span class="badge" id="tbadge">0건</span>
   <span id="netbadge" onclick="showNetInfo()" style="font-size:11px;padding:2px 8px;border-radius:99px;cursor:pointer;color:#f87171" title="확인 중...">●</span>
   <div class="spacer"></div>
@@ -695,11 +695,6 @@ mark{background:#fef08a;border-radius:2px}
       <div id="tb"></div>
     </div>
   </div>
-  <div class="memo-card">
-    <div class="memo-hdr">📝 메모</div>
-    <textarea id="memo-text" placeholder="자유롭게 메모하세요..." oninput="saveMemo()"></textarea>
-    <div class="memo-footer" id="memo-saved"></div>
-  </div>
   <div class="right">
     <div class="card">
       <div class="cal-nav">
@@ -710,6 +705,11 @@ mark{background:#fef08a;border-radius:2px}
       <div class="dow"><span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span></div>
       <div class="days" id="days"></div>
       <div class="cal-hint">날짜를 클릭하면 목록이 그 날짜만 표시됩니다</div>
+    </div>
+    <div class="memo-card">
+      <div class="memo-hdr">📝 메모</div>
+      <textarea id="memo-text" placeholder="자유롭게 메모하세요..." oninput="saveMemo()"></textarea>
+      <div class="memo-footer" id="memo-saved"></div>
     </div>
   </div>
 </div>

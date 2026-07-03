@@ -609,11 +609,16 @@ select{padding:6px 8px;border:1px solid #cbd5e0;border-radius:6px;font-size:12px
 .cClassification{background:#fed7aa;color:#7b341e}
 .c감소활동{background:#e9d8fd;color:#553c9a}
 .eb{display:inline-block;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:600}
-.right{display:flex;flex-direction:column;width:270px;flex-shrink:0;gap:8px}
-.memo-card{flex:1;min-height:120px;background:#fffaf0;border:1px solid #f6ad55;border-radius:10px;display:flex;flex-direction:column;overflow:hidden}
+.right{display:flex;flex-direction:column;width:290px;flex-shrink:0;gap:8px}
+.memo-card{flex:1;min-height:110px;background:#fffaf0;border:1px solid #f6ad55;border-radius:10px;display:flex;flex-direction:column;overflow:hidden}
 .memo-hdr{background:#dd7c1e;color:#fff;padding:8px 12px;font-size:12px;font-weight:600}
 #memo-text{flex:1;width:100%;border:none;background:transparent;resize:none;padding:12px;font-family:'맑은 고딕',sans-serif;font-size:12px;line-height:1.6;outline:none;color:#5a4a3a}
 .memo-footer{padding:4px 12px 8px;font-size:10px;color:#c08a4a;text-align:right}
+.pm-card{flex:1.4;min-height:140px;background:#ebf8ff;border:1px solid #63b3ed;border-radius:10px;display:flex;flex-direction:column;overflow:hidden}
+.pm-hdr{background:#2b6cb0;color:#fff;padding:8px 12px;font-size:12px;font-weight:600;display:flex;align-items:center;gap:6px}
+#pm-equip{margin:6px 8px 2px;padding:4px 6px;border:1px solid #bee3f8;border-radius:6px;font-size:12px;font-weight:600;color:#2b6cb0;background:#fff}
+#pm-text{flex:1;width:100%;border:none;background:transparent;resize:none;padding:8px 12px;font-family:'맑은 고딕',sans-serif;font-size:12px;line-height:1.6;outline:none;color:#2a4365}
+.pm-footer{padding:4px 12px 8px;font-size:10px;color:#4299e1;text-align:right}
 .card{background:#fff;border-radius:10px;border:1px solid #e2e8f0;overflow:hidden}
 .cal-nav{background:#1e3a5f;color:#fff;display:flex;align-items:center;padding:6px 10px}
 .cal-nav button{background:none;border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:4px;width:24px;height:24px;cursor:pointer;font-size:12px}
@@ -660,7 +665,7 @@ mark{background:#fef08a;border-radius:2px}
 </head>
 <body>
 <div class="topbar">
-  <h1>📋 인수인계 관리 [JC02]</h1><span style="font-size:10px;color:#64b5f6;background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:4px;font-weight:400;letter-spacing:0.5px">v1.4.29</span>
+  <h1>📋 인수인계 관리 [JC02]</h1><span style="font-size:10px;color:#64b5f6;background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:4px;font-weight:400;letter-spacing:0.5px">v1.4.30</span>
   <span class="badge" id="tbadge">0건</span>
   <span id="netbadge" onclick="showNetInfo()" style="font-size:11px;padding:2px 8px;border-radius:99px;cursor:pointer;color:#f87171" title="확인 중...">●</span>
   <div class="spacer"></div>
@@ -707,6 +712,12 @@ mark{background:#fef08a;border-radius:2px}
       <div class="dow"><span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span></div>
       <div class="days" id="days"></div>
       <div class="cal-hint">날짜를 클릭하면 목록이 그 날짜만 표시됩니다</div>
+    </div>
+    <div class="pm-card">
+      <div class="pm-hdr">🔧 설비 PM 체크리스트</div>
+      <select id="pm-equip" onchange="loadPmNote()"></select>
+      <textarea id="pm-text" placeholder="이 설비 PM 시 해야 할 일을 적으세요..." oninput="savePmNote()"></textarea>
+      <div class="pm-footer" id="pm-saved"></div>
     </div>
     <div class="memo-card">
       <div class="memo-hdr">📝 메모</div>
@@ -792,6 +803,44 @@ async function loadMemo(){
   const txt=(await memoLoad('hk_memo_jc02'))||'';
   document.getElementById('memo-text').value=txt;
   if(txt) document.getElementById('memo-saved').textContent='불러옴';
+}
+
+// ── 설비별 PM 체크리스트 ─────────────────────────────────
+// 메모와 똑같이 로컬 파일에 저장(껐다 켜도 유지). memoSave/memoLoad를 재활용하되
+// 키를 'hk_pm_'+MY_DONG으로 해서 동별 파일이 갈린다(JC01=hk_pm_JC01.txt,
+// JC02=hk_pm_JC02.txt). 값은 {설비명:내용} JSON 한 덩어리. 설비 목록은 이 동의
+// 필터 설비(EQUIP_BY_DONG[MY_DONG])를 그대로 쓴다.
+let pmData={};
+function renderPmEquipOptions(){
+  const sel=document.getElementById('pm-equip');
+  const cur=sel.value;
+  const list=EQUIP_BY_DONG[MY_DONG]||[];
+  sel.innerHTML=list.map(e=>{
+    const mark=(pmData[e]&&pmData[e].trim())?'● ':'';   // 내용 있는 설비 표시
+    return '<option value="'+e+'">'+mark+e+'</option>';
+  }).join('');
+  if(cur && list.includes(cur)) sel.value=cur;
+}
+function loadPmNote(){
+  const eq=document.getElementById('pm-equip').value;
+  document.getElementById('pm-text').value=pmData[eq]||'';
+}
+function savePmNote(){
+  const sel=document.getElementById('pm-equip');
+  const eq=sel.value;
+  const txt=document.getElementById('pm-text').value;
+  pmData[eq]=txt;
+  memoSave('hk_pm_'+MY_DONG, JSON.stringify(pmData));
+  // 현재 설비 옵션의 ● 표시만 갱신(전체 재빌드 없이)
+  const opt=sel.selectedOptions[0];
+  if(opt) opt.textContent=((txt&&txt.trim())?'● ':'')+eq;
+  document.getElementById('pm-saved').textContent='저장됨 '+new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'});
+}
+async function loadPmAll(){
+  const raw=await memoLoad('hk_pm_'+MY_DONG);
+  try{ pmData=raw?JSON.parse(raw):{}; }catch(e){ pmData={}; }
+  renderPmEquipOptions();
+  loadPmNote();
 }
 
 // ── 설비 다중선택 상태 ──────────────────────────────────
@@ -916,7 +965,7 @@ async function init(){
   if(tw) tw.addEventListener('scroll',()=>{
     if(shown<fil.length && tw.scrollTop+tw.clientHeight>=tw.scrollHeight-300) renderMore();
   });
-  applyFilter(); renderCal(); loadMemo();
+  applyFilter(); renderCal(); loadMemo(); loadPmAll();
 }
 
 function applyNetInfo(info){

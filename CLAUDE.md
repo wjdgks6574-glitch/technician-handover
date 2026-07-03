@@ -29,7 +29,7 @@ goapp/main_jc02_v142.go.tmp    JC02 소스 (정본)
 
 ## 🔨 빌드 & 버전
 
-현재 버전: **v1.4.29**
+현재 버전: **v1.4.30**
 
 ```bash
 export GOPATH=$HOME/go && export PATH=$PATH:/usr/local/go/bin
@@ -37,13 +37,13 @@ cd goapp
 # JC01 (JC02는 파일명만 jc02로)
 cp main_jc01_v142.go.tmp main.go && gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.29.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.30.exe .
 rm -f main.go
 ```
 
 - `-ldflags`에 **`-s -w` 넣지 말 것** (백신 오탐 원인).
 - **빌드해서 전달할 때마다 버전을 올린다.** 소스 2개 HTML의 `v1.4.X` 문자열
-  (각 파일 663번째 줄)과 이 문서·`HANDOFF.md`의 버전도 함께 바꾼다.
+  (각 파일 668번째 줄)과 이 문서·`HANDOFF.md`의 버전도 함께 바꾼다.
 - `go vet`는 로컬(리눅스)에서 `syscall.NewLazyDLL`, `buildHTML`의 Sprintf(`%`)를
   오탐한다 — 둘 다 예전부터 있던 노이즈. `GOOS=windows` 빌드가 통과하면 정상.
 
@@ -54,7 +54,7 @@ rm -f main.go
 확인은 `diff main_jc01_v142.go.tmp main_jc02_v142.go.tmp` 한 줄이면 된다 —
 두 파일을 각각 Read 하지 말 것.
 
-다른 곳 (JC01 → JC02 기준 라인번호, v1.4.29 시점):
+다른 곳 (JC01 → JC02 기준 라인번호, v1.4.30 시점):
 | 줄 | JC01 | JC02 |
 |----|------|------|
 | 306 | 주석 "JC01은 100000번대" | "JC02는 200000번대" |
@@ -63,13 +63,15 @@ rm -f main.go
 | 328 | `const myDong = "JC01"` | `= "JC02"` (Go 쓰기권한 동) |
 | 467 | `...\1동\Pending Item&지속관리` | `...\CELL_MEE_..\P10 Cell Sorter` (파츠폴더) |
 | 478 | `"JC_1 Sorter 필요 Parts"` | `"JC_2 Sorter 필요 Parts2"` (파츠파일명) |
-| 663 | `[JC01]` (제목) | `[JC02]` |
-| 676-677 | `JC01 selected` | `JC02 selected` |
-| 726 | `<option value="JC02">` | `<option value="JC02" selected>` |
-| 779 | `const MY_DONG='JC01'` | `='JC02'` (JS 쓰기권한 동) |
-| 786 | `memoSave('hk_memo',…)` | `memoSave('hk_memo_jc02',…)` |
-| 792 | `memoLoad('hk_memo')` | `memoLoad('hk_memo_jc02')` |
-| 910 | `fD.value='JC01'` | `='JC02'` |
+| 668 | `[JC01]` (제목) | `[JC02]` |
+| 681-682 | `JC01 selected` | `JC02 selected` |
+| 737 | `<option value="JC02">` | `<option value="JC02" selected>` |
+| 790 | `const MY_DONG='JC01'` | `='JC02'` (JS 쓰기권한 동) |
+| 797 | `memoSave('hk_memo',…)` | `memoSave('hk_memo_jc02',…)` |
+| 803 | `memoLoad('hk_memo')` | `memoLoad('hk_memo_jc02')` |
+| 959 | `fD.value='JC01'` | `='JC02'` |
+
+> 참고: PM 체크리스트 저장 키는 `'hk_pm_'+MY_DONG`으로 **양쪽 파일 동일**(변수라 diff 아님).
 
 ## 🗂 데이터 모델 (Record)
 
@@ -157,4 +159,9 @@ type Record struct {
   추가·변경 시 **3곳을 모두** 고쳐야 함: ① 메인 필터 `<select id="fC">` ② 새항목 모달
   `<select id="fc">` ③ 배지 색 CSS `.c<이름>`(이름에 공백 없이). 하나만 빠지면 필터/입력/
   색 중 하나가 어긋난다.
+- **설비별 PM 체크리스트 (v1.4.30)** — 우측 칼럼(달력·메모와 함께)에 `.pm-card`.
+  설비 선택(`#pm-equip`, `EQUIP_BY_DONG[MY_DONG]`) + 내용(`#pm-text`). 메모처럼
+  로컬 파일 저장(`memoSave/memoLoad`)이라 껐다 켜도 유지. 키는 `'hk_pm_'+MY_DONG`
+  (동별 파일), 값은 `{설비:내용}` JSON 한 덩어리(`pmData`). 내용 있는 설비는 드롭다운에
+  `●` 표시. `localStorage`로 되돌리지 말 것(메모와 동일 이유 — opaque origin 유실).
 - 헤드리스/유닛테스트 통과 ≠ Windows 실기 정상. 큰 변경은 실기 확인 필요.

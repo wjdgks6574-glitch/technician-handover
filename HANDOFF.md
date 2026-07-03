@@ -1,6 +1,6 @@
 # 인수인계 관리 프로그램 - 작업 인수인계 문서
 
-## 현재 버전: v1.4.29
+## 현재 버전: v1.4.30
 
 Go + WebView2 기반 Windows 데스크톱 앱. JC01(1동)/JC02(2동) 두 변형이 거의 동일한
 소스 구조를 공유하며, 각각 별도의 .exe로 빌드됨.
@@ -38,13 +38,13 @@ cd goapp
 cp main_jc01_v142.go.tmp main.go
 gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.29.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.30.exe .
 
 # JC02
 cp main_jc02_v142.go.tmp main.go
 gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC02_v1.4.29.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC02_v1.4.30.exe .
 ```
 
 **주의**: `-ldflags`에 `-s -w`를 넣지 마세요. 심볼 제거(압축)가 백신 오탐의
@@ -271,6 +271,21 @@ JS `renderDetail`. **상세 패널을 되살리지 말 것** — 날짜 열람�
   fire-and-forget으로 파일에 쓰고(입력마다), `loadMemo`는 시작 시 async로 읽는다.
   **다시 `localStorage`로 되돌리지 말 것 — 유실 재발.** (`DataPath` 고정 자체는
   WebView2 캐시 등을 우리 폴더에 모으는 용도로 그대로 유지.)
+
+### 설비별 PM 체크리스트 (v1.4.30)
+설비마다 PM(예방정비) 시 할 일을 적어두는 패널. 우측 칼럼에 달력·메모와 함께
+세로로 쌓임(달력 → PM → 메모). 메모처럼 **로컬 파일 저장**이라 껐다 켜도 유지된다.
+- UI: `.pm-card` 안에 설비 선택 드롭다운(`#pm-equip`)과 내용 textarea(`#pm-text`).
+  설비 목록은 이 동의 필터 설비(`EQUIP_BY_DONG[MY_DONG]`, '공통' 포함)를 그대로 쓴다.
+- 저장: `memoSave/memoLoad`를 재활용하되 키를 `'hk_pm_'+MY_DONG`으로 해서 동별로
+  파일이 갈린다(`hk_pm_JC01.txt` / `hk_pm_JC02.txt`). 값은 설비명→내용을 담은
+  `{"#1":"...","#2":"..."}` JSON 한 덩어리(`pmData`). 설비를 바꾸면 그 설비 내용을
+  textarea에 로드(`loadPmNote`), 입력할 때마다 전체 JSON을 파일에 저장(`savePmNote`,
+  fire-and-forget). 시작 시 `loadPmAll`이 파일을 읽어 `pmData`에 채운다.
+- 내용이 있는 설비는 드롭다운 옵션 앞에 `●` 표시(`renderPmEquipOptions`)해서 어떤
+  설비에 PM 항목이 적혀 있는지 한눈에 보인다.
+- 키에 `MY_DONG` 변수를 써서 두 소스 파일의 PM 코드는 **완전히 동일**하다(13곳 diff
+  아님). 메모처럼 **localStorage로 되돌리지 말 것**(opaque origin 유실).
 
 ---
 

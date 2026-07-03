@@ -29,7 +29,7 @@ goapp/main_jc02_v142.go.tmp    JC02 소스 (정본)
 
 ## 🔨 빌드 & 버전
 
-현재 버전: **v1.4.42**
+현재 버전: **v1.4.43**
 
 ```bash
 export GOPATH=$HOME/go && export PATH=$PATH:/usr/local/go/bin
@@ -37,7 +37,7 @@ cd goapp
 # JC01 (JC02는 파일명만 jc02로)
 cp main_jc01_v142.go.tmp main.go && gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.42.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.43.exe .
 rm -f main.go
 ```
 
@@ -54,7 +54,7 @@ rm -f main.go
 확인은 `diff main_jc01_v142.go.tmp main_jc02_v142.go.tmp` 한 줄이면 된다 —
 두 파일을 각각 Read 하지 말 것.
 
-다른 곳 (JC01 → JC02 기준 라인번호, v1.4.42 시점):
+다른 곳 (JC01 → JC02 기준 라인번호, v1.4.43 시점):
 | 줄 | JC01 | JC02 |
 |----|------|------|
 | 307 | 주석 "JC01은 100000번대" | "JC02는 200000번대" |
@@ -155,6 +155,13 @@ type Record struct {
   선언해 우선순위 확보). **선택된 날짜(`.sd`)는 노란 배경(`#f6e05e`)+갈색 글자
   (`#744210`)로 오늘(파랑)과 구별(v1.4.35)** — `.sd`가 `.td2`보다 CSS에서 먼저
   선언돼 있어, 오늘 날짜를 선택하면 `.td2`가 이겨 파란색 유지(의도된 동작).
+- **자정 넘어가면 '오늘' 자동 갱신 (v1.4.43)** — `today()`/`.td2`는 `renderCal`이
+  실행될 때만 `new Date()`로 계산된다. 앱을 켜둔 채 날짜가 바뀌면(예: 밤새 켜둠)
+  `renderCal`이 다시 안 불려 오늘 표시가 어제에 멈춘다(사용자 신고: 7/4인데 7/3에
+  파란 표시). `init` 끝에서 `scheduleMidnight()`를 걸어 **다음 날 00:00:02에
+  `renderCal`을 다시 부르고 매일 자정마다 재예약**한다. 자정에서 1~2초 여유를 둔
+  건 `setTimeout` 오차로 자정 직전에 깨어나면 `new Date()`가 아직 어제라서다.
+  이 스케줄러를 지우면 밤샘 시 오늘 표시가 안 넘어가는 버그가 재발한다.
 - **날짜 필터 (v1.4.27, v1.4.36에서 다중 선택으로 확장)** — 달력 밑 상세 패널
   (`det-card`/`renderDetail`)을 없애고, 달력 날짜 클릭(`selDate2`)은 메인 목록을
   그 날짜(들)만 보이게 하는 **필터**다. 상태는 `selDates`(Set, 여러 날짜 누적 가능) —

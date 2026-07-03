@@ -1,6 +1,6 @@
 # 인수인계 관리 프로그램 - 작업 인수인계 문서
 
-## 현재 버전: v1.4.42
+## 현재 버전: v1.4.43
 
 Go + WebView2 기반 Windows 데스크톱 앱. JC01(1동)/JC02(2동) 두 변형이 거의 동일한
 소스 구조를 공유하며, 각각 별도의 .exe로 빌드됨.
@@ -38,13 +38,13 @@ cd goapp
 cp main_jc01_v142.go.tmp main.go
 gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.42.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.43.exe .
 
 # JC02
 cp main_jc02_v142.go.tmp main.go
 gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC02_v1.4.42.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC02_v1.4.43.exe .
 ```
 
 **주의**: `-ldflags`에 `-s -w`를 넣지 마세요. 심볼 제거(압축)가 백신 오탐의
@@ -267,6 +267,29 @@ JS `renderDetail`. **상세 패널을 되살리지 말 것** — 날짜 열람�
 배경색이 이겨야 하므로 CSS에서 `.day.td2`를 `.day.sat`/`.day.sun`보다 **뒤에**
 선언해 우선순위를 확보했다(클래스 조합의 CSS 우선순위는 스타일시트 선언 순서로
 정해짐 — 순서 바꾸지 말 것). 선택된 날짜(`.sd`)도 원래부터 파란 배경+흰 글자였음.
+
+### 자정이 지나면 달력 '오늘' 자동 갱신 (v1.4.43)
+증상: 앱을 밤새 켜둔 채 날짜가 바뀌면 달력의 오늘 파란 표시(`.td2`)가 어제
+날짜에 그대로 멈춰 있었다(사용자 신고 — 7/4인데 달력엔 7/3이 계속 활성화).
+원인: `today()`(=`new Date().toISOString().slice(0,10)`)와 `.td2`는 `renderCal`이
+호출되는 순간에만 계산되는데, 앱을 켜둔 상태에서는 사용자가 월 이동(`chM`)이나
+동 변경 등으로 `renderCal`을 다시 부르지 않는 한 자정이 지나도 재계산되지 않는다.
+해결: `init` 끝에서 `scheduleMidnight()`를 호출한다.
+
+```js
+function scheduleMidnight(){
+  const now=new Date();
+  const next=new Date(now.getFullYear(),now.getMonth(),now.getDate()+1,0,0,2);
+  setTimeout(function(){ renderCal(); scheduleMidnight(); }, next-now);
+}
+```
+
+다음 날 00:00:02(자정+2초)에 `renderCal`을 다시 불러 오늘 표시를 갱신하고,
+그 안에서 `scheduleMidnight`를 재호출해 매일 자정마다 반복한다. 자정 정각이 아닌
++2초로 잡은 이유는 `setTimeout`의 오차로 자정 몇 ms 전에 깨어나면 `new Date()`가
+아직 어제라서 `renderCal`이 어제를 오늘로 표시할 수 있기 때문이다. 며칠을 연속으로
+켜둬도 매 자정마다 자동으로 하루씩 넘어간다. 이 스케줄러를 제거하면 밤샘 시 오늘
+표시가 안 넘어가는 원래 버그가 재발한다.
 
 ### 내용 전체보기 X 버튼이 안 닫히던 버그 (v1.4.24)
 `viewFull`의 닫기 버튼이 `onclick="this.closest('[style]').remove()"`로 되어

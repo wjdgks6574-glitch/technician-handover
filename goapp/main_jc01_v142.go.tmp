@@ -681,7 +681,7 @@ mark{background:#fef08a;border-radius:2px}
 </head>
 <body>
 <div class="topbar">
-  <h1>📋 인수인계 관리 [JC01]</h1><span style="font-size:10px;color:#64b5f6;background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:4px;font-weight:400;letter-spacing:0.5px">v1.4.42</span>
+  <h1>📋 인수인계 관리 [JC01]</h1><span style="font-size:10px;color:#64b5f6;background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:4px;font-weight:400;letter-spacing:0.5px">v1.4.43</span>
   <span class="badge" id="tbadge">0건</span>
   <span id="netbadge" onclick="showNetInfo()" style="font-size:11px;padding:2px 8px;border-radius:99px;cursor:pointer;color:#f87171" title="확인 중...">●</span>
   <div class="spacer"></div>
@@ -994,6 +994,7 @@ async function init(){
     if(shown<fil.length && tw.scrollTop+tw.clientHeight>=tw.scrollHeight-300) renderMore();
   });
   applyFilter(); renderCal(); loadMemo(); loadPmAll();
+  scheduleMidnight();
 }
 
 function applyNetInfo(info){
@@ -1216,6 +1217,14 @@ function renderCal(){
 }
 
 function chM(d){calM+=d;if(calM<1){calM=12;calY--;}if(calM>12){calM=1;calY++;}renderCal();}
+// 앱을 켜둔 채 날짜가 바뀌면 달력의 '오늘'(.td2) 표시가 어제에 멈춘다. 다음 날
+// 00:00:02에 renderCal을 다시 불러 오늘 표시를 갱신하고, 그 뒤 매일 자정마다
+// 반복하도록 재예약한다(자정에서 1~2초 여유를 둬 new Date()가 확실히 새 날로 넘어간 뒤 실행).
+function scheduleMidnight(){
+  const now=new Date();
+  const next=new Date(now.getFullYear(),now.getMonth(),now.getDate()+1,0,0,2);
+  setTimeout(function(){ renderCal(); scheduleMidnight(); }, next-now);
+}
 // 달력 날짜 클릭 = 메인 목록을 그 날짜(들)만 표시하는 필터. 여러 날짜를 클릭해
 // 누적 선택할 수 있고, 이미 선택된 날짜를 다시 클릭하면 그 날짜만 해제(토글).
 // applyFilter가 renderTable/updateBadge/renderCal을 모두 다시 그리므로

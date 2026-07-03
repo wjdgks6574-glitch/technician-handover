@@ -29,7 +29,7 @@ goapp/main_jc02_v142.go.tmp    JC02 소스 (정본)
 
 ## 🔨 빌드 & 버전
 
-현재 버전: **v1.4.24**
+현재 버전: **v1.4.25**
 
 ```bash
 export GOPATH=$HOME/go && export PATH=$PATH:/usr/local/go/bin
@@ -37,13 +37,15 @@ cd goapp
 # JC01 (JC02는 파일명만 jc02로)
 cp main_jc01_v142.go.tmp main.go && gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.24.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.25.exe .
 rm -f main.go
 ```
 
 - `-ldflags`에 **`-s -w` 넣지 말 것** (백신 오탐 원인).
 - **빌드해서 전달할 때마다 버전을 올린다.** 소스 2개 HTML의 `v1.4.X` 문자열
-  (각 파일 606번째 줄)과 이 문서·`HANDOFF.md`의 버전도 함께 바꾼다.
+  (각 파일 666번째 줄)과 이 문서·`HANDOFF.md`의 버전도 함께 바꾼다.
+- `go vet`는 로컬(리눅스)에서 `syscall.NewLazyDLL`, `buildHTML`의 Sprintf(`%`)를
+  오탐한다 — 둘 다 예전부터 있던 노이즈. `GOOS=windows` 빌드가 통과하면 정상.
 
 ## ⚠️ 두 소스는 997줄이 동일, 딱 13곳만 다르다
 
@@ -52,22 +54,22 @@ rm -f main.go
 확인은 `diff main_jc01_v142.go.tmp main_jc02_v142.go.tmp` 한 줄이면 된다 —
 두 파일을 각각 Read 하지 말 것.
 
-다른 곳 (JC01 → JC02 기준 라인번호, v1.4.24 시점):
+다른 곳 (JC01 → JC02 기준 라인번호, v1.4.25 시점):
 | 줄 | JC01 | JC02 |
 |----|------|------|
-| 252 | 주석 "JC01은 100000번대" | "JC02는 200000번대" |
-| 255 | `max := 100000` | `max := 200000` |
-| 257 | `r.ID < 200000` | `r.ID < 300000` |
-| 273 | `const myDong = "JC01"` | `= "JC02"` (Go 쓰기권한 동) |
-| 413 | `...\1동\Pending Item&지속관리` | `...\CELL_MEE_..\P10 Cell Sorter` (파츠폴더) |
-| 424 | `"JC_1 Sorter 필요 Parts"` | `"JC_2 Sorter 필요 Parts2"` (파츠파일명) |
-| 606 | `[JC01]` (제목) | `[JC02]` |
-| 619-620 | `JC01 selected` | `JC02 selected` |
-| 673 | `<option value="JC02">` | `<option value="JC02" selected>` |
-| 725 | `const MY_DONG='JC01'` | `='JC02'` (JS 쓰기권한 동) |
-| 732 | `memoSave('hk_memo',…)` | `memoSave('hk_memo_jc02',…)` |
-| 738 | `memoLoad('hk_memo')` | `memoLoad('hk_memo_jc02')` |
-| 856 | `fD.value='JC01'` | `='JC02'` |
+| 306 | 주석 "JC01은 100000번대" | "JC02는 200000번대" |
+| 309 | `max := 100000` | `max := 200000` |
+| 311 | `r.ID < 200000` | `r.ID < 300000` |
+| 328 | `const myDong = "JC01"` | `= "JC02"` (Go 쓰기권한 동) |
+| 467 | `...\1동\Pending Item&지속관리` | `...\CELL_MEE_..\P10 Cell Sorter` (파츠폴더) |
+| 478 | `"JC_1 Sorter 필요 Parts"` | `"JC_2 Sorter 필요 Parts2"` (파츠파일명) |
+| 666 | `[JC01]` (제목) | `[JC02]` |
+| 679-680 | `JC01 selected` | `JC02 selected` |
+| 733 | `<option value="JC02">` | `<option value="JC02" selected>` |
+| 785 | `const MY_DONG='JC01'` | `='JC02'` (JS 쓰기권한 동) |
+| 792 | `memoSave('hk_memo',…)` | `memoSave('hk_memo_jc02',…)` |
+| 798 | `memoLoad('hk_memo')` | `memoLoad('hk_memo_jc02')` |
+| 916 | `fD.value='JC01'` | `='JC02'` |
 
 ## 🗂 데이터 모델 (Record)
 
@@ -78,38 +80,48 @@ type Record struct {
 ```
 - `ID`는 **정수** (문자열로 절대 바꾸지 말 것 — WebView2 바인딩 의존).
 - **정렬(메인 목록)**: `flag` 먼저(켜진 게 최상단) → 날짜 내림 → id 내림.
-  `flag`는 행별 ⚑ 버튼으로 토글, `dbSetFlag(id,flag)`가 saveMerged로 DB에 저장(공유).
+  `flag`는 행별 ⚑ 버튼으로 토글, `dbSetFlag(id,flag)`가 메모리 갱신 후
+  백그라운드로 DB에 저장(공유).
 - **ID 대역 분리**: JC01 = `100000`번대(100001~199999), JC02 = `200000`번대.
   `nextID()`는 자기 동 대역 안에서만 최댓값을 찾고, `migrateIDOffsets()`가
   옛 순차 ID를 시작 시 자동 이관한다. 대역이 겹치면 안 됨.
 - 저장: `\\172.23.11.175\...\records.json` (네트워크 공유, JC01/JC02 혼재,
   `dong`으로 구분) + `%APPDATA%\인수인계관리\records_local_backup.json` (폴백).
   읽기 5초 / 쓰기 3초 타임아웃(goroutine+channel).
+- **저장은 백그라운드 (v1.4.25)**: 추가/수정/삭제/플래그는 메모리(`records`)만
+  즉시 바꾸고 반환 → `requestSave()`가 백그라운드 flusher에 신호 → `flushOnce()`가
+  네트워크에 저장. UI 스레드가 네트워크 IO에 안 막혀 렉이 사라짐. 아래 회귀 방지 참고.
 
 ## 🧭 Go 함수 위치 (main_jc01, 대략 동일)
 
 | 줄 | 함수 |
 |----|------|
-| 19-20 | `//go:embed` + `initialDataJSON` |
-| 39 `getDataDir` · 50 `getNetworkDir` | 경로 |
-| 57 `readWithTimeout` · 87 `writeWithTimeout` | 타임아웃 IO |
-| 143 `migrateEquipNames` · 159 `migrateIDOffsets` | 마이그레이션 |
-| 179 `loadRecords` · 223 `saveRecords` | 데이터 로직 |
-| 236 `saveMerged` · 254 `nextID(rs)` | 저장 시 재읽기·델타 병합 / 채번 |
-| 273 `myDong`(상수) · 277 `isOwnRecord` | 쓰기권한 동 / 소유권 검사 |
-| 286 `handleBind` | WebView2 바인딩 (dbGetAll/dbAdd/dbUpdate/dbDelete/dbSetFlag→saveMerged, memoSave/memoLoad) |
-| 412 `openPartsFileImpl` · 444 `maximizeWindow` | |
-| 450 `main` | WebView2 생성. `DataPath` 고정(getDataDir/webview2) |
-| 486 `buildHTML` | UI 전체 (HTML+CSS+JS, ~600줄) |
+| 20 | `//go:embed` + `initialDataJSON` |
+| 43 `recMu`(뮤텍스) · 48 `saveSignal`(chan) | records 보호 / 저장 신호 |
+| 50 `getDataDir` · 61 `getNetworkDir` | 경로 |
+| 68 `readWithTimeout` · 98 `writeWithTimeout` | 타임아웃 IO |
+| 154 `migrateEquipNames` · 170 `migrateIDOffsets` | 마이그레이션 |
+| 189 `loadRecords` · 233 `saveRecords` | 데이터 로직 |
+| 243 `requestSave` · 253 `startFlusher` · 268 `flushOnce` | 백그라운드 저장(내 동=메모리·상대 동=네트워크 병합) |
+| 308 `nextID(rs)` · 328 `myDong`(상수) | 채번 / 쓰기권한 동 |
+| 330 `handleBind` | WebView2 바인딩 (dbGetAll/dbAdd/dbUpdate/dbDelete/dbSetFlag→requestSave, memoSave/memoLoad). 소유권은 lock 안 루프에서 검사 |
+| 466 `openPartsFileImpl` · 498 `maximizeWindow` | |
+| 504 `main` | loadRecords→startFlusher→WebView2. 종료 시 flushOnce로 마지막 저장 |
+| 546 `buildHTML` | UI 전체 (HTML+CSS+JS, ~600줄) |
 
 ## 🚫 회귀 방지 (HANDOFF의 과거 사건 요약 — 상세는 HANDOFF.md)
 
 - 테이블은 `<table>` 아님, **div Flexbox** (`.frow`/`.fc-*`). 되돌리지 말 것.
 - 네트워크 상태는 `dbGetAll()` 응답에 실어 보냄. **별도 상태 전용 바인딩
   추가 금지** (dbGetPath 단독 호출이 WebView2에서 hang 재발 위험).
-- **저장은 `saveMerged`로 재읽기·병합** — `dbAdd/Update/Delete`는 통째 덮어쓰기
-  금지. 저장 직전 네트워크 파일을 다시 읽어 내 델타만 얹는다(JC01/JC02 동시
-  사용 시 상대 동 데이터 유실 방지). 전량 덮어쓰기로 되돌리지 말 것.
+- **저장은 백그라운드 + 동별 병합 (v1.4.25, 예전 saveMerged 대체)** — 바인딩
+  (dbAdd/Update/Delete/SetFlag)은 `recMu` 잠그고 메모리만 바꾸고 `requestSave()`
+  후 즉시 반환(네트워크 IO로 UI 막지 말 것 — 1만 건 렉 원인). 실제 저장은
+  `startFlusher`의 단일 goroutine이 `flushOnce`를 **직렬로** 실행: 네트워크를 다시
+  읽어 **상대 동은 네트워크 최신본, 내 동은 메모리(정본)** 로 합쳐 쓴다(한 동은
+  한 PC만 쓰므로 성립). `saveSignal`(버퍼1)로 연속 변경은 coalesce. 종료 시
+  `main`이 `flushOnce` 한 번 더 호출해 막 누른 변경 유실 방지. **다시 UI 스레드에서
+  동기 저장(saveMerged 방식)으로 되돌리지 말 것.** `records`는 항상 `recMu` 아래에서.
 - 무거운 렌더링 전 `requestAnimationFrame` 한 프레임 양보 유지(배지 리페인트).
 - **메인 목록은 가상 스크롤(점진적 렌더)** — `renderTable`이 `fil` 전량을
   `innerHTML`로 그리지 말 것(1만 건 렉 원인). `RCHUNK`(60)씩 `renderMore()`로
@@ -119,8 +131,10 @@ type Record struct {
   바인딩으로 `%APPDATA%\인수인계관리\<key>.txt`에 저장. localStorage로 되돌리지 말 것.
 - **동별 쓰기 권한 제한 (v1.4.22)** — 자기 동(`myDong`/`MY_DONG`) 레코드만
   추가/수정/삭제/플래그 가능. 상대 동은 읽기 전용. Go의 dbAdd/Update/Delete/
-  SetFlag가 `isOwnRecord`로 최종 방어(UI 우회해도 거부), UI는 상대 동 행의
-  ⚑·수정·삭제를 숨김(`.foreign`). dbAdd는 dong을 항상 myDong으로 강제.
+  SetFlag가 상대 동이면 거부(UI 우회해도), UI는 상대 동 행의 ⚑·수정·삭제를
+  숨김(`.foreign`). dbAdd는 dong을 항상 myDong으로 강제. (v1.4.25에서 별도
+  `isOwnRecord` 함수는 없애고, 각 바인딩의 `recMu` 잠근 루프가 `Dong==myDong`
+  일 때만 변경 → 소유권 검사가 변경과 원자적. 상대 동 id는 매칭이 안 돼 거부됨.)
 - **상대 동 행 글자색 (v1.4.23)** — `.frow.foreign`은 배경만 살짝 회색(`#fafbfc`),
   글자색은 검은색 그대로 유지. 예전엔 내용 글자도 회색(`#a0aec0`)으로 흐리게
   했으나 가독성 이슈로 제거함. 다시 흐리게 만들지 말 것.

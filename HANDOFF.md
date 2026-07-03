@@ -1,6 +1,6 @@
 # 인수인계 관리 프로그램 - 작업 인수인계 문서
 
-## 현재 버전: v1.4.24
+## 현재 버전: v1.4.25
 
 Go + WebView2 기반 Windows 데스크톱 앱. JC01(1동)/JC02(2동) 두 변형이 거의 동일한
 소스 구조를 공유하며, 각각 별도의 .exe로 빌드됨.
@@ -38,13 +38,13 @@ cd goapp
 cp main_jc01_v142.go.tmp main.go
 gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.24.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.25.exe .
 
 # JC02
 cp main_jc02_v142.go.tmp main.go
 gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC02_v1.4.24.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC02_v1.4.25.exe .
 ```
 
 **주의**: `-ldflags`에 `-s -w`를 넣지 마세요. 심볼 제거(압축)가 백신 오탐의
@@ -83,8 +83,33 @@ JC01 PC와 JC02 PC가 같은 `records.json`을 공유하는데, 예전엔 저장
 이상일 때만 효과가 있다** — 한쪽이 옛 버전이면 그쪽이 여전히 통째 덮어쓴다.
 남는 미세 경합: 두 PC가 정확히 같은 순간(수 ms) 저장하면 짧은 창은 남지만,
 "세션 내내 유실" → "저장 순간 수 ms"로 줄어 사실상 해결. 완전 제거(파일 잠금)는
-과거 hang 이슈 위험이 있어 도입하지 않음. 저장할 때마다 파일을 한 번 더 읽으므로
-큰 DB에서는 저장이 약간 느려질 수 있다(정확성 우선).
+과거 hang 이슈 위험이 있어 도입하지 않음.
+
+**저장을 백그라운드로 이동 (v1.4.25) — 저장 중 UI 멈춤(렉) 해결**:
+v1.4.17의 `saveMerged`는 저장 직전 네트워크를 다시 읽고 쓰는데, 이 전부를
+**UI(WebView2 메시지 루프) 스레드에서 동기로** 했다. WebView2 바인딩은 그
+스레드에서 호출되므로(`MessageReceived`→`msgcb`→바인딩 동기 실행), 데이터가
+1만 건대로 커지자 매 추가/수정/삭제/플래그마다 네트워크 왕복 동안 창 전체가
+멈추는 렉이 생겼다. 이제 구조를 바꿨다:
+- **바인딩**: `recMu`를 잠그고 메모리(`records`)만 즉시 바꾼 뒤 `requestSave()`로
+  신호만 남기고 **바로 반환**한다. UI가 네트워크 IO에 안 막힌다.
+- **백그라운드 flusher**: `startFlusher`가 띄운 단일 goroutine이 `saveSignal`을
+  받아 `flushOnce`를 **한 번에 하나씩(직렬)** 실행한다. 직렬이라 저장끼리 겹쳐
+  상대 동 데이터가 유실되지 않는다.
+- **`flushOnce`의 병합 원칙**: 내 동은 이 프로그램만 쓰니 **메모리가 정본**,
+  상대 동은 이 프로그램이 안 쓰니 **네트워크가 정본**. 저장 직전 네트워크를 다시
+  읽어 상대 동 최신본을 가져오고 내 동은 메모리 것으로 통째 교체해 합친다.
+  결과는 v1.4.17 델타 병합과 같지만, 여러 변경이 쌓여도 항상 올바르고 겹침에
+  안전하다. 느린 네트워크 IO는 lock 밖에서, `records` 교체만 lock 안에서 한다.
+- **coalesce**: `saveSignal` 버퍼가 1이라, 저장 중 들어온 여러 변경 신호는
+  하나로 합쳐진다. 플래그를 빠르게 여러 번 눌러도 네트워크 쓰기가 매번 일어나지
+  않고 마지막 상태만 반영 → 네트워크 쓰기 횟수도 줄어든다.
+- **종료 시 안전 저장**: `w.Run()`이 반환된(창 닫힘) 뒤 `main`이 `flushOnce`를
+  한 번 더 호출해, 막 누른 변경이 백그라운드 저장 전에 유실되지 않게 한다.
+- 소유권 검사(자기 동만 쓰기)는 별도 `isOwnRecord` 함수를 없애고 각 바인딩의
+  `recMu` 잠근 루프에서 `Dong==myDong`으로 처리 → 검사와 변경이 원자적이다.
+주의: **다시 UI 스레드 동기 저장으로 되돌리지 말 것.** `records`는 항상 `recMu`
+아래에서만 만진다.
 
 ### Record 구조체
 ```go
@@ -171,7 +196,7 @@ ID 대역을 나눴습니다.
   (`applyFilter`의 `fil.sort`. CSV 내보내기는 날짜 내림→id 내림, flag 무관.)
 - **플래그(⚑) 기능**: 행마다 ⚑ 버튼(`.fc-flag`/`.flagbtn`). 클릭하면 그 레코드가
   **최상단 고정**(빨강 표시 + 좌측 빨강 바 `.frow.flagged`). 상태는 `Record.Flag`로
-  **DB에 공유 저장** — `dbSetFlag(id,flag)`가 `saveMerged`로 기록(같은 동 다른 PC와
+  **DB에 공유 저장** — `dbSetFlag(id,flag)`가 메모리 갱신 후 백그라운드로 기록(같은 동 다른 PC와
   공유, 서버에도 남음). `toggleFlag`는 `all`을 낙관적으로 갱신 후 `applyFilter`로
   재정렬하고 백그라운드로 `dbSetFlag` 호출. `Flag`는 `omitempty`라 꺼진 레코드엔
   json에 안 남아 하위호환. `dbUpdate`는 flag를 안 건드려 편집해도 플래그 유지.

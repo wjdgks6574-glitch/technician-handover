@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 	"unsafe"
@@ -36,6 +37,15 @@ var records []Record
 var w webview.WebView
 var networkOK bool
 var lastNetErr string
+
+// recMu는 records 슬라이스 접근을 보호한다. 저장이 이제 백그라운드 goroutine에서
+// 일어나므로 UI 스레드(바인딩)와 저장 goroutine이 동시에 records를 만질 수 있다.
+var recMu sync.Mutex
+
+// saveSignal은 "저장할 변경이 생겼다"는 신호다. 버퍼가 1이라 저장이 진행 중일 때
+// 들어온 여러 신호는 하나로 합쳐진다(coalesce). 플래그를 빠르게 여러 번 눌러도
+// 네트워크 쓰기가 매번 일어나지 않고 마지막 상태만 반영된다.
+var saveSignal = make(chan struct{}, 1)
 
 func getDataDir() string {
 	appData := os.Getenv("APPDATA")
@@ -227,26 +237,70 @@ func saveRecords() {
 	writeWithTimeout(cacheFile, records, 3)
 }
 
-// saveMerged는 저장 직전에 네트워크 파일을 "다시 읽어" 최신 상태에 이번
-// 변경분(apply)만 얹은 뒤 쓴다. JC01/JC02가 같은 records.json을 공유하므로
-// 메모리 스냅샷을 통째로 덮어쓰면 상대 동이 그동안 저장한 내용이 사라진다
-// (last-writer-wins). 두 동은 dong과 ID 대역(JC01=100000·JC02=200000)이 갈려
-// 서로의 레코드를 건드리지 않으니, 최신본에 델타만 얹으면 충돌 없이 양쪽
-// 데이터가 보존된다. 네트워크를 못 읽으면 메모리 기준으로 폴백한다(안전 우선).
-func saveMerged(apply func([]Record) []Record) {
+// requestSave는 변경이 생겼음을 백그라운드 저장 goroutine에 알린다. UI 스레드는
+// 이 함수 호출 후 곧바로 반환하므로 네트워크 왕복 동안 창이 멈추지 않는다.
+// saveSignal 버퍼가 1이라 저장 진행 중 들어온 신호들은 하나로 합쳐진다.
+func requestSave() {
+	select {
+	case saveSignal <- struct{}{}:
+	default: // 이미 저장 대기 중 - 합침
+	}
+}
+
+// startFlusher는 저장 신호를 받아 flushOnce를 "한 번에 하나씩" 실행하는 백그라운드
+// goroutine을 띄운다. 직렬 실행이라 저장끼리 겹쳐 상대 동 데이터가 유실되는 일이
+// 없다. loadRecords 뒤, UI 시작 전에 한 번 호출한다.
+func startFlusher() {
+	go func() {
+		for range saveSignal {
+			flushOnce()
+		}
+	}()
+}
+
+// flushOnce는 현재 메모리 상태를 네트워크(및 로컬 백업)에 저장한다. 원칙:
+//   - 내 동(myDong) 레코드는 이 프로그램만 쓰므로 "메모리"가 정본이다.
+//   - 상대 동 레코드는 이 프로그램이 절대 안 쓰므로 "네트워크"가 정본이다.
+// 저장 직전 네트워크를 다시 읽어 상대 동 최신본을 가져오고, 내 동은 메모리 것으로
+// 통째 교체해 합친다. (예전 saveMerged의 델타 병합과 결과는 같으나, 변경이 여러
+// 개 쌓여도 항상 올바르고 겹침에 안전하다.) 느린 네트워크 IO는 lock을 잡지 않은
+// 채로 하고 records 교체만 lock 안에서 하므로 UI를 오래 막지 않는다.
+func flushOnce() {
 	base := readWithTimeout(dataFile, 5)
-	if base != nil {
+	haveBase := base != nil
+	if haveBase {
 		base, _ = migrateEquipNames(base)
 		base, _ = migrateIDOffsets(base)
-		networkOK = true
-	} else {
-		base = records // 최신본을 못 읽으면 현재 메모리 기준 (기존 동작)
 	}
-	records = apply(base)
-	ok := writeWithTimeout(dataFile, records, 5)
-	networkOK = ok
+
+	recMu.Lock()
+	merged := make([]Record, 0, len(records))
+	for _, r := range records { // 내 동: 메모리(정본)
+		if r.Dong == myDong {
+			merged = append(merged, r)
+		}
+	}
+	if haveBase { // 상대 동: 네트워크 최신본
+		for _, r := range base {
+			if r.Dong != myDong {
+				merged = append(merged, r)
+			}
+		}
+	} else { // 네트워크를 못 읽었으면 상대 동도 기존 메모리 유지(안전 우선)
+		for _, r := range records {
+			if r.Dong != myDong {
+				merged = append(merged, r)
+			}
+		}
+	}
+	records = merged
+	out := make([]Record, len(records))
+	copy(out, records)
+	recMu.Unlock()
+
+	networkOK = writeWithTimeout(dataFile, out, 5)
 	// 네트워크 저장 성공 여부와 관계없이 로컬 안전망은 항상 갱신
-	writeWithTimeout(cacheFile, records, 3)
+	writeWithTimeout(cacheFile, out, 3)
 }
 
 // JC01은 100000번대 ID를 쓴다 (JC02는 200000번대). 공유 파일을 오프라인
@@ -268,20 +322,10 @@ func toJSON(v interface{}) string {
 
 // myDong은 이 빌드가 쓰기 권한을 갖는 동이다. dbAdd/dbUpdate/dbDelete/
 // dbSetFlag는 records.json을 JC01/JC02가 공유하는 상황에서 상대 동
-// 데이터를 실수로(또는 의도적으로) 건드리는 것을 막기 위해 이 값으로
-// 소유권을 검사한다. 읽기(dbGetAll)는 항상 양쪽 동 전체를 그대로 준다.
+// 데이터를 실수로(또는 의도적으로) 건드리는 것을 막는다. 소유권 검사는 각
+// 바인딩의 lock 안 루프에서 Dong==myDong으로 하므로(상대 동이면 매칭 안 됨)
+// UI를 우회해도 거부된다. 읽기(dbGetAll)는 항상 양쪽 동 전체를 그대로 준다.
 const myDong = "JC01"
-
-// isOwnRecord는 id의 레코드가 myDong 소속인지 확인한다. UI에서 상대 동
-// 행의 수정/삭제/플래그 버튼을 숨기지만, 이건 서버 쪽 최종 방어선이다.
-func isOwnRecord(id int) bool {
-	for _, r := range records {
-		if r.ID == id {
-			return r.Dong == myDong
-		}
-	}
-	return false
-}
 
 func handleBind(w webview.WebView) {
 	w.Bind("dbGetAll", func() string {
@@ -289,8 +333,12 @@ func handleBind(w webview.WebView) {
 		if !networkOK {
 			status = "⚠ 네트워크 연결 안됨 - 로컬 백업본 사용 중"
 		}
+		recMu.Lock()
+		snapshot := make([]Record, len(records))
+		copy(snapshot, records)
+		recMu.Unlock()
 		return toJSON(map[string]interface{}{
-			"records": records,
+			"records": snapshot,
 			"network": dataFile,
 			"backup":  cacheFile,
 			"status":  status,
@@ -298,80 +346,86 @@ func handleBind(w webview.WebView) {
 		})
 	})
 
+	// 아래 4개(추가/수정/삭제/플래그)는 예전엔 saveMerged로 네트워크를 다시 읽고
+	// 쓰는 저장까지 UI 스레드에서 동기로 했다. 데이터가 1만 건대로 커지자 그
+	// 네트워크 왕복 동안 창 전체가 멈추는 렉이 생겼다. 이제는 메모리(records)만
+	// 즉시 바꾸고 바로 반환한 뒤, 실제 저장은 requestSave로 백그라운드에 맡긴다.
+	// 소유권 검사(Dong==myDong)는 lock 안 루프에서 하므로 상대 동 레코드는 여전히
+	// 거부된다(서버 최종 방어, 이제 변경과 원자적).
 	w.Bind("dbAdd", func(date, equip, worker, category, content, dong string) string {
-		var added Record
-		saveMerged(func(base []Record) []Record {
-			added = Record{
-				ID:       nextID(base),
-				Date:     strings.TrimSpace(date),
-				Equip:    strings.TrimSpace(equip),
-				Worker:   strings.TrimSpace(worker),
-				Category: strings.TrimSpace(category),
-				Content:  strings.TrimSpace(content),
-				Dong:     myDong, // 클라이언트가 보낸 dong은 무시 - 항상 내 동으로 생성
-			}
-			return append(base, added)
-		})
+		recMu.Lock()
+		added := Record{
+			ID:       nextID(records),
+			Date:     strings.TrimSpace(date),
+			Equip:    strings.TrimSpace(equip),
+			Worker:   strings.TrimSpace(worker),
+			Category: strings.TrimSpace(category),
+			Content:  strings.TrimSpace(content),
+			Dong:     myDong, // 클라이언트가 보낸 dong은 무시 - 항상 내 동으로 생성
+		}
+		records = append(records, added)
+		recMu.Unlock()
+		requestSave()
 		return toJSON(added)
 	})
 
 	w.Bind("dbUpdate", func(id int, date, equip, worker, category, content, dong string) bool {
-		if !isOwnRecord(id) {
-			return false // 상대 동 레코드는 수정 불가
-		}
+		recMu.Lock()
 		found := false
-		saveMerged(func(base []Record) []Record {
-			for i := range base {
-				if base[i].ID == id && base[i].Dong == myDong {
-					base[i].Date = strings.TrimSpace(date)
-					base[i].Equip = strings.TrimSpace(equip)
-					base[i].Worker = strings.TrimSpace(worker)
-					base[i].Category = strings.TrimSpace(category)
-					base[i].Content = strings.TrimSpace(content)
-					// Dong은 내 동으로 고정 - 레코드를 다른 동으로 옮기는 것도 금지
-					found = true
-					break
-				}
+		for i := range records {
+			if records[i].ID == id && records[i].Dong == myDong {
+				records[i].Date = strings.TrimSpace(date)
+				records[i].Equip = strings.TrimSpace(equip)
+				records[i].Worker = strings.TrimSpace(worker)
+				records[i].Category = strings.TrimSpace(category)
+				records[i].Content = strings.TrimSpace(content)
+				// Dong은 내 동으로 고정 - 레코드를 다른 동으로 옮기는 것도 금지
+				found = true
+				break
 			}
-			return base
-		})
+		}
+		recMu.Unlock()
+		if found {
+			requestSave()
+		}
 		return found
 	})
 
 	w.Bind("dbDelete", func(id int) bool {
-		if !isOwnRecord(id) {
-			return false // 상대 동 레코드는 삭제 불가
-		}
+		recMu.Lock()
 		found := false
-		saveMerged(func(base []Record) []Record {
-			out := make([]Record, 0, len(base))
-			for _, r := range base {
-				if r.ID == id && r.Dong == myDong {
-					found = true
-					continue
-				}
-				out = append(out, r)
+		out := make([]Record, 0, len(records))
+		for _, r := range records {
+			if r.ID == id && r.Dong == myDong {
+				found = true
+				continue
 			}
-			return out
-		})
+			out = append(out, r)
+		}
+		if found {
+			records = out
+		}
+		recMu.Unlock()
+		if found {
+			requestSave()
+		}
 		return found
 	})
 
 	w.Bind("dbSetFlag", func(id int, flag bool) bool {
-		if !isOwnRecord(id) {
-			return false // 상대 동 레코드는 플래그 변경 불가
-		}
+		recMu.Lock()
 		found := false
-		saveMerged(func(base []Record) []Record {
-			for i := range base {
-				if base[i].ID == id && base[i].Dong == myDong {
-					base[i].Flag = flag
-					found = true
-					break
-				}
+		for i := range records {
+			if records[i].ID == id && records[i].Dong == myDong {
+				records[i].Flag = flag
+				found = true
+				break
 			}
-			return base
-		})
+		}
+		recMu.Unlock()
+		if found {
+			requestSave()
+		}
 		return found
 	})
 
@@ -449,6 +503,7 @@ func maximizeWindow(hwnd unsafe.Pointer) {
 
 func main() {
 	loadRecords()
+	startFlusher() // 백그라운드 저장 goroutine 시작 (loadRecords 뒤, UI 앞)
 
 	w = webview.NewWithOptions(webview.WebViewOptions{
 		Debug: false,
@@ -479,6 +534,11 @@ func main() {
 	handleBind(w)
 	w.SetHtml(buildHTML())
 	w.Run()
+
+	// 창이 닫힐 때, 백그라운드에 아직 반영 안 된 변경이 남아있을 수 있으니
+	// 마지막으로 한 번 동기 저장하고 종료한다 (막 누른 플래그/추가/수정이
+	// 유실되지 않도록).
+	flushOnce()
 }
 
 var _ = unsafe.Pointer(nil)
@@ -603,7 +663,7 @@ mark{background:#fef08a;border-radius:2px}
 </head>
 <body>
 <div class="topbar">
-  <h1>📋 인수인계 관리 [JC01]</h1><span style="font-size:10px;color:#64b5f6;background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:4px;font-weight:400;letter-spacing:0.5px">v1.4.24</span>
+  <h1>📋 인수인계 관리 [JC01]</h1><span style="font-size:10px;color:#64b5f6;background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:4px;font-weight:400;letter-spacing:0.5px">v1.4.25</span>
   <span class="badge" id="tbadge">0건</span>
   <span id="netbadge" onclick="showNetInfo()" style="font-size:11px;padding:2px 8px;border-radius:99px;cursor:pointer;color:#f87171" title="확인 중...">●</span>
   <div class="spacer"></div>

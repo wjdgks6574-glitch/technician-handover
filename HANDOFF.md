@@ -1,6 +1,6 @@
 # 인수인계 관리 프로그램 - 작업 인수인계 문서
 
-## 현재 버전: v1.4.33
+## 현재 버전: v1.4.34
 
 Go + WebView2 기반 Windows 데스크톱 앱. JC01(1동)/JC02(2동) 두 변형이 거의 동일한
 소스 구조를 공유하며, 각각 별도의 .exe로 빌드됨.
@@ -38,13 +38,13 @@ cd goapp
 cp main_jc01_v142.go.tmp main.go
 gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.33.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.34.exe .
 
 # JC02
 cp main_jc02_v142.go.tmp main.go
 gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC02_v1.4.33.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC02_v1.4.34.exe .
 ```
 
 **주의**: `-ldflags`에 `-s -w`를 넣지 마세요. 심볼 제거(압축)가 백신 오탐의
@@ -272,10 +272,10 @@ JS `renderDetail`. **상세 패널을 되살리지 말 것** — 날짜 열람�
   **다시 `localStorage`로 되돌리지 말 것 — 유실 재발.** (`DataPath` 고정 자체는
   WebView2 캐시 등을 우리 폴더에 모으는 용도로 그대로 유지.)
 
-### 설비별 PM 체크리스트 (v1.4.30 도입, v1.4.33 상시 표 방식으로 변경)
+### 설비별 PM 체크리스트 (v1.4.30 도입, v1.4.34 상시 표 방식으로 변경)
 설비마다 PM(예방정비) 시 할 일을 적어두는 표. 메모처럼 **로컬 파일 저장**이라 껐다
 켜도 유지된다.
-- **위치/형태 (v1.4.33)**: 메인 목록(`.left`)과 달력(`.right`) **사이**의 독립 칼럼
+- **위치/형태 (v1.4.34)**: 메인 목록(`.left`)과 달력(`.right`) **사이**의 독립 칼럼
   `.pm-col`. 이미지(인계 표)처럼 **4칸 그리드**(`.pm-grid`: 설비|내용|설비|내용)로
   설비를 2개씩 한 줄에 배치한다. 설비 목록은 이 동의 필터 설비
   (`EQUIP_BY_DONG[MY_DONG]`, '공통' 포함)를 반으로 나눠 **왼쪽 절반=좌측 쌍,

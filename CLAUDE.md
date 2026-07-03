@@ -29,7 +29,7 @@ goapp/main_jc02_v142.go.tmp    JC02 소스 (정본)
 
 ## 🔨 빌드 & 버전
 
-현재 버전: **v1.4.33**
+현재 버전: **v1.4.34**
 
 ```bash
 export GOPATH=$HOME/go && export PATH=$PATH:/usr/local/go/bin
@@ -37,7 +37,7 @@ cd goapp
 # JC01 (JC02는 파일명만 jc02로)
 cp main_jc01_v142.go.tmp main.go && gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.33.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.34.exe .
 rm -f main.go
 ```
 
@@ -54,7 +54,7 @@ rm -f main.go
 확인은 `diff main_jc01_v142.go.tmp main_jc02_v142.go.tmp` 한 줄이면 된다 —
 두 파일을 각각 Read 하지 말 것.
 
-다른 곳 (JC01 → JC02 기준 라인번호, v1.4.33 시점):
+다른 곳 (JC01 → JC02 기준 라인번호, v1.4.34 시점):
 | 줄 | JC01 | JC02 |
 |----|------|------|
 | 306 | 주석 "JC01은 100000번대" | "JC02는 200000번대" |
@@ -169,6 +169,10 @@ type Record struct {
   되돌리지 말 것(메모와 동일 — opaque origin 유실). v1.4.30의 드롭다운 방식은 폐기.
 - **근무자 셀 여러 줄 (v1.4.33)** — `rowHTML`의 근무자 칸은 `workerCell(r.worker)`로
   렌더. 쉼표로 구분된 근무자를 `<br>`로 나눠 여러 줄로 보이고, 가장 긴 이름
-  글자수에 따라 폰트를 12→8px로 줄여 88px 칸(`.fc-w`)에 맞춘다. `<br>`가 flex에서
+  글자수에 따라 폰트를 12→8px로 줄여 근무자 칸(`.fc-w`)에 맞춘다. `<br>`가 flex에서
   안 먹으므로 내부 블록 `.wk` div로 감쌈. 헤더의 "근무자"는 그대로.
+- **메인 목록 칸 폭 축소 (v1.4.34)** — 동/날짜/설비/근무자 칸 폭과 가로 패딩을 글자
+  크기에 맞게 줄임: `.fc-dong`44/`.fc-d`58/`.fc-e`56/`.fc-w`68px(+패딩 3~4px). 설비는
+  최장값 `ATW#61`(JC01)이 기준이라 더 못 줄임(`.eb` 패딩도 7→5). 남는 폭은 내용
+  칸(`.fc-ct`, flex:1)이 가져감. 더 줄이면 실기에서 글자 잘릴 수 있으니 주의.
 - 헤드리스/유닛테스트 통과 ≠ Windows 실기 정상. 큰 변경은 실기 확인 필요.

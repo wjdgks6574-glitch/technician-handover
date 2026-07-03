@@ -29,7 +29,7 @@ goapp/main_jc02_v142.go.tmp    JC02 소스 (정본)
 
 ## 🔨 빌드 & 버전
 
-현재 버전: **v1.4.39**
+현재 버전: **v1.4.40**
 
 ```bash
 export GOPATH=$HOME/go && export PATH=$PATH:/usr/local/go/bin
@@ -37,7 +37,7 @@ cd goapp
 # JC01 (JC02는 파일명만 jc02로)
 cp main_jc01_v142.go.tmp main.go && gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.39.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.40.exe .
 rm -f main.go
 ```
 
@@ -54,7 +54,7 @@ rm -f main.go
 확인은 `diff main_jc01_v142.go.tmp main_jc02_v142.go.tmp` 한 줄이면 된다 —
 두 파일을 각각 Read 하지 말 것.
 
-다른 곳 (JC01 → JC02 기준 라인번호, v1.4.39 시점):
+다른 곳 (JC01 → JC02 기준 라인번호, v1.4.40 시점):
 | 줄 | JC01 | JC02 |
 |----|------|------|
 | 306 | 주석 "JC01은 100000번대" | "JC02는 200000번대" |
@@ -178,6 +178,13 @@ type Record struct {
   키 `'hk_pm_'+MY_DONG`(동별 파일), 값 `{설비:내용}` JSON(`pmData`). `renderPmTable`이
   시작 시 표를 그린다(그 뒤엔 셀 편집만, 재렌더 없음 → 포커스 유지). `localStorage`로
   되돌리지 말 것(메모와 동일 — opaque origin 유실). v1.4.30의 드롭다운 방식은 폐기.
+  **내용 칸 폭 15% 축소 (v1.4.40)** — `grid-template-columns`가
+  `max-content .85fr max-content .85fr .3fr`. 내용 칸(`1fr`이던 것)을 `.85fr`
+  두 개로 줄이고, 남는 `.3fr`을 5번째(빈) 트랙으로 둬서 오른쪽 여백으로 흡수시켰다
+  (각 행은 셀 4개만 만들므로 5번째 트랙엔 내용이 안 들어가고 폭만 차지함 —
+  `.pm-grid`의 회색 배경이 그 여백에 비쳐 보임, 의도된 동작). `fr`은 상대값이라
+  다른 `fr` 트랙이 없으면 줄여도 그대로 꽉 채우므로, 이렇게 트랙을 하나 추가하는
+  방식으로 실제 폭을 줄였다.
 - **근무자 셀 여러 줄 (v1.4.33)** — `rowHTML`의 근무자 칸은 `workerCell(r.worker,r.shift)`로
   렌더. 쉼표로 구분된 근무자를 `<br>`로 나눠 여러 줄로 보이고, 가장 긴 이름
   글자수에 따라 폰트를 12→8px로 줄여 근무자 칸(`.fc-w`)에 맞춘다. `<br>`가 flex에서

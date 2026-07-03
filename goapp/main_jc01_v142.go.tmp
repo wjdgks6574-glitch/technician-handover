@@ -624,7 +624,7 @@ select{padding:6px 8px;border:1px solid #cbd5e0;border-radius:6px;font-size:12px
 .pm-col{display:flex;flex-direction:column;flex:1;min-width:360px;background:#fff;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden}
 .pm-hdr{background:#1e3a5f;color:#fff;padding:8px 12px;font-size:12px;font-weight:600;display:flex;align-items:center;gap:8px;flex-shrink:0}
 .pm-saved{font-size:10px;font-weight:400;color:#bee3f8;margin-left:auto}
-.pm-grid{flex:1;overflow-y:auto;display:grid;grid-template-columns:max-content 1fr max-content 1fr;align-content:start;gap:1px;background:#e2e8f0;padding:1px}
+.pm-grid{flex:1;overflow-y:auto;display:grid;grid-template-columns:max-content .85fr max-content .85fr .3fr;align-content:start;gap:1px;background:#e2e8f0;padding:1px}
 .pm-cell{background:#fff;font-size:12px;padding:6px 8px;line-height:1.5;min-height:34px;overflow-wrap:anywhere;white-space:pre-wrap}
 .pm-cell.pm-h{background:#1e3a5f;color:#fff;font-weight:600;text-align:center;position:sticky;top:0;z-index:1;min-height:0;padding:5px}
 .pm-cell.pm-name{background:#2c7a7b;color:#fff;font-weight:700;text-align:center;white-space:nowrap;padding:4px 7px;display:flex;align-items:center;justify-content:center}
@@ -677,7 +677,7 @@ mark{background:#fef08a;border-radius:2px}
 </head>
 <body>
 <div class="topbar">
-  <h1>📋 인수인계 관리 [JC01]</h1><span style="font-size:10px;color:#64b5f6;background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:4px;font-weight:400;letter-spacing:0.5px">v1.4.39</span>
+  <h1>📋 인수인계 관리 [JC01]</h1><span style="font-size:10px;color:#64b5f6;background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:4px;font-weight:400;letter-spacing:0.5px">v1.4.40</span>
   <span class="badge" id="tbadge">0건</span>
   <span id="netbadge" onclick="showNetInfo()" style="font-size:11px;padding:2px 8px;border-radius:99px;cursor:pointer;color:#f87171" title="확인 중...">●</span>
   <div class="spacer"></div>

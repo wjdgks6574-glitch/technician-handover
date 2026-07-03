@@ -1,6 +1,6 @@
 # 인수인계 관리 프로그램 - 작업 인수인계 문서
 
-## 현재 버전: v1.4.39
+## 현재 버전: v1.4.40
 
 Go + WebView2 기반 Windows 데스크톱 앱. JC01(1동)/JC02(2동) 두 변형이 거의 동일한
 소스 구조를 공유하며, 각각 별도의 .exe로 빌드됨.
@@ -38,13 +38,13 @@ cd goapp
 cp main_jc01_v142.go.tmp main.go
 gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.39.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.40.exe .
 
 # JC02
 cp main_jc02_v142.go.tmp main.go
 gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC02_v1.4.39.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC02_v1.4.40.exe .
 ```
 
 **주의**: `-ldflags`에 `-s -w`를 넣지 마세요. 심볼 제거(압축)가 백신 오탐의
@@ -350,6 +350,17 @@ JS `renderDetail`. **상세 패널을 되살리지 말 것** — 날짜 열람�
 - 키에 `MY_DONG` 변수를 써서 두 소스 파일의 PM 코드는 **완전히 동일**(13곳 diff 아님).
 - 예전 v1.4.30은 드롭다운(설비 선택) + textarea 1개였으나, 상시로 다 보이게 표로 바꿈.
   메모처럼 **localStorage로 되돌리지 말 것**(opaque origin 유실).
+
+**내용 칸 폭 15% 축소 (v1.4.40)**: `.pm-grid`의 `grid-template-columns`을
+`max-content 1fr max-content 1fr`에서 `max-content .85fr max-content .85fr .3fr`로
+바꿨다. CSS Grid의 `fr` 단위는 **상대 비율**이라, 다른 `fr` 트랙이 없으면 값을
+줄여도(예: `1fr`→`.85fr` 단독) 여전히 남는 공간 전체를 그대로 차지해버려서
+아무 효과가 없다 — 그래서 줄어든 만큼(`.3fr`)을 흡수할 **5번째 트랙을 추가**했다.
+각 행(`pmCells`)은 셀을 4개(설비|내용|설비|내용)만 만들기 때문에 5번째 트랙에는
+아무 것도 안 들어가고 폭만 차지 → 오른쪽에 `.pm-grid`의 회색 배경이 비치는 여백으로
+보인다(의도된 동작, 버그 아님). 비율을 더 줄이거나 늘리려면 `.85fr`/`.3fr` 두
+숫자의 합이 원래 `1fr`+`1fr`=2였다는 걸 기준으로 계산할 것
+(예: 30% 줄이려면 `.7fr .7fr .6fr`).
 
 ---
 

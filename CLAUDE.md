@@ -29,7 +29,7 @@ goapp/main_jc02_v142.go.tmp    JC02 소스 (정본)
 
 ## 🔨 빌드 & 버전
 
-현재 버전: **v1.4.21**
+현재 버전: **v1.4.22**
 
 ```bash
 export GOPATH=$HOME/go && export PATH=$PATH:/usr/local/go/bin
@@ -37,13 +37,13 @@ cd goapp
 # JC01 (JC02는 파일명만 jc02로)
 cp main_jc01_v142.go.tmp main.go && gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.21.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.22.exe .
 rm -f main.go
 ```
 
 - `-ldflags`에 **`-s -w` 넣지 말 것** (백신 오탐 원인).
 - **빌드해서 전달할 때마다 버전을 올린다.** 소스 2개 HTML의 `v1.4.X` 문자열
-  (각 파일 578번째 줄)과 이 문서·`HANDOFF.md`의 버전도 함께 바꾼다.
+  (각 파일 607번째 줄)과 이 문서·`HANDOFF.md`의 버전도 함께 바꾼다.
 
 ## ⚠️ 두 소스는 997줄이 동일, 딱 13곳만 다르다
 
@@ -52,21 +52,22 @@ rm -f main.go
 확인은 `diff main_jc01_v142.go.tmp main_jc02_v142.go.tmp` 한 줄이면 된다 —
 두 파일을 각각 Read 하지 말 것.
 
-다른 곳 (JC01 → JC02 기준 라인번호, v1.4.21 시점):
+다른 곳 (JC01 → JC02 기준 라인번호, v1.4.22 시점):
 | 줄 | JC01 | JC02 |
 |----|------|------|
 | 252 | 주석 "JC01은 100000번대" | "JC02는 200000번대" |
 | 255 | `max := 100000` | `max := 200000` |
 | 257 | `r.ID < 200000` | `r.ID < 300000` |
-| 387 | `...\1동\Pending Item&지속관리` | `...\CELL_MEE_..\P10 Cell Sorter` (파츠폴더) |
-| 398 | `"JC_1 Sorter 필요 Parts"` | `"JC_2 Sorter 필요 Parts2"` (파츠파일명) |
-| 578 | `[JC01]` (제목) | `[JC02]` |
-| 591-592 | `JC01 selected` | `JC02 selected` |
-| 645 | `<option value="JC02">` | `<option value="JC02" selected>` |
-| 703 | `memoSave('hk_memo',…)` | `memoSave('hk_memo_jc02',…)` |
-| 709 | `memoLoad('hk_memo')` | `memoLoad('hk_memo_jc02')` |
-| 827 | `fD.value='JC01'` | `='JC02'` |
-| 1042 | `... || 'JC01'` | `... || 'JC02'` |
+| 273 | `const myDong = "JC01"` | `= "JC02"` (Go 쓰기권한 동) |
+| 413 | `...\1동\Pending Item&지속관리` | `...\CELL_MEE_..\P10 Cell Sorter` (파츠폴더) |
+| 424 | `"JC_1 Sorter 필요 Parts"` | `"JC_2 Sorter 필요 Parts2"` (파츠파일명) |
+| 607 | `[JC01]` (제목) | `[JC02]` |
+| 620-621 | `JC01 selected` | `JC02 selected` |
+| 674 | `<option value="JC02">` | `<option value="JC02" selected>` |
+| 726 | `const MY_DONG='JC01'` | `='JC02'` (JS 쓰기권한 동) |
+| 733 | `memoSave('hk_memo',…)` | `memoSave('hk_memo_jc02',…)` |
+| 739 | `memoLoad('hk_memo')` | `memoLoad('hk_memo_jc02')` |
+| 857 | `fD.value='JC01'` | `='JC02'` |
 
 ## 🗂 데이터 모델 (Record)
 
@@ -95,10 +96,11 @@ type Record struct {
 | 143 `migrateEquipNames` · 159 `migrateIDOffsets` | 마이그레이션 |
 | 179 `loadRecords` · 223 `saveRecords` | 데이터 로직 |
 | 236 `saveMerged` · 254 `nextID(rs)` | 저장 시 재읽기·델타 병합 / 채번 |
-| 269 `handleBind` | WebView2 바인딩 (dbGetAll/dbAdd/dbUpdate/dbDelete/dbSetFlag→saveMerged, memoSave/memoLoad) |
-| 386 `openPartsFileImpl` · 418 `maximizeWindow` | |
-| 424 `main` | WebView2 생성. `DataPath` 고정(getDataDir/webview2) |
-| 460 `buildHTML` | UI 전체 (HTML+CSS+JS, ~600줄) |
+| 273 `myDong`(상수) · 277 `isOwnRecord` | 쓰기권한 동 / 소유권 검사 |
+| 286 `handleBind` | WebView2 바인딩 (dbGetAll/dbAdd/dbUpdate/dbDelete/dbSetFlag→saveMerged, memoSave/memoLoad) |
+| 412 `openPartsFileImpl` · 444 `maximizeWindow` | |
+| 450 `main` | WebView2 생성. `DataPath` 고정(getDataDir/webview2) |
+| 486 `buildHTML` | UI 전체 (HTML+CSS+JS, ~600줄) |
 
 ## 🚫 회귀 방지 (HANDOFF의 과거 사건 요약 — 상세는 HANDOFF.md)
 
@@ -115,4 +117,8 @@ type Record struct {
 - **메모는 `localStorage` 금지, 로컬 파일 저장** — `SetHtml`(NavigateToString)은
   origin이 opaque라 localStorage가 재시작 시 유실된다. `memoSave/memoLoad` Go
   바인딩으로 `%APPDATA%\인수인계관리\<key>.txt`에 저장. localStorage로 되돌리지 말 것.
+- **동별 쓰기 권한 제한 (v1.4.22)** — 자기 동(`myDong`/`MY_DONG`) 레코드만
+  추가/수정/삭제/플래그 가능. 상대 동은 읽기 전용. Go의 dbAdd/Update/Delete/
+  SetFlag가 `isOwnRecord`로 최종 방어(UI 우회해도 거부), UI는 상대 동 행의
+  ⚑·수정·삭제를 숨김(`.foreign`). dbAdd는 dong을 항상 myDong으로 강제.
 - 헤드리스/유닛테스트 통과 ≠ Windows 실기 정상. 큰 변경은 실기 확인 필요.

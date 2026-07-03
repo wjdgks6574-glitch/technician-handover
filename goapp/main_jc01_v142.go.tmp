@@ -266,6 +266,23 @@ func toJSON(v interface{}) string {
 	return string(b)
 }
 
+// myDong은 이 빌드가 쓰기 권한을 갖는 동이다. dbAdd/dbUpdate/dbDelete/
+// dbSetFlag는 records.json을 JC01/JC02가 공유하는 상황에서 상대 동
+// 데이터를 실수로(또는 의도적으로) 건드리는 것을 막기 위해 이 값으로
+// 소유권을 검사한다. 읽기(dbGetAll)는 항상 양쪽 동 전체를 그대로 준다.
+const myDong = "JC01"
+
+// isOwnRecord는 id의 레코드가 myDong 소속인지 확인한다. UI에서 상대 동
+// 행의 수정/삭제/플래그 버튼을 숨기지만, 이건 서버 쪽 최종 방어선이다.
+func isOwnRecord(id int) bool {
+	for _, r := range records {
+		if r.ID == id {
+			return r.Dong == myDong
+		}
+	}
+	return false
+}
+
 func handleBind(w webview.WebView) {
 	w.Bind("dbGetAll", func() string {
 		status := "네트워크 저장소 연결됨"
@@ -291,7 +308,7 @@ func handleBind(w webview.WebView) {
 				Worker:   strings.TrimSpace(worker),
 				Category: strings.TrimSpace(category),
 				Content:  strings.TrimSpace(content),
-				Dong:     strings.TrimSpace(dong),
+				Dong:     myDong, // 클라이언트가 보낸 dong은 무시 - 항상 내 동으로 생성
 			}
 			return append(base, added)
 		})
@@ -299,16 +316,19 @@ func handleBind(w webview.WebView) {
 	})
 
 	w.Bind("dbUpdate", func(id int, date, equip, worker, category, content, dong string) bool {
+		if !isOwnRecord(id) {
+			return false // 상대 동 레코드는 수정 불가
+		}
 		found := false
 		saveMerged(func(base []Record) []Record {
 			for i := range base {
-				if base[i].ID == id {
+				if base[i].ID == id && base[i].Dong == myDong {
 					base[i].Date = strings.TrimSpace(date)
 					base[i].Equip = strings.TrimSpace(equip)
 					base[i].Worker = strings.TrimSpace(worker)
 					base[i].Category = strings.TrimSpace(category)
 					base[i].Content = strings.TrimSpace(content)
-					base[i].Dong = strings.TrimSpace(dong)
+					// Dong은 내 동으로 고정 - 레코드를 다른 동으로 옮기는 것도 금지
 					found = true
 					break
 				}
@@ -319,11 +339,14 @@ func handleBind(w webview.WebView) {
 	})
 
 	w.Bind("dbDelete", func(id int) bool {
+		if !isOwnRecord(id) {
+			return false // 상대 동 레코드는 삭제 불가
+		}
 		found := false
 		saveMerged(func(base []Record) []Record {
 			out := make([]Record, 0, len(base))
 			for _, r := range base {
-				if r.ID == id {
+				if r.ID == id && r.Dong == myDong {
 					found = true
 					continue
 				}
@@ -335,10 +358,13 @@ func handleBind(w webview.WebView) {
 	})
 
 	w.Bind("dbSetFlag", func(id int, flag bool) bool {
+		if !isOwnRecord(id) {
+			return false // 상대 동 레코드는 플래그 변경 불가
+		}
 		found := false
 		saveMerged(func(base []Record) []Record {
 			for i := range base {
-				if base[i].ID == id {
+				if base[i].ID == id && base[i].Dong == myDong {
 					base[i].Flag = flag
 					found = true
 					break
@@ -505,6 +531,9 @@ select{padding:6px 8px;border:1px solid #cbd5e0;border-radius:6px;font-size:12px
 .flagbtn{background:none;border:none;cursor:pointer;font-size:14px;color:#cbd5e0;padding:2px 4px;line-height:1;border-radius:4px}
 .flagbtn:hover{background:#edf2f7}
 .flagbtn.on{color:#e53e3e}
+.flagbtn.dim{color:#e2e8f0;cursor:default}
+.frow.foreign{background:#fafbfc}
+.frow.foreign .fc-ct .pv{color:#a0aec0}
 .frow.flagged{box-shadow:inset 3px 0 0 #e53e3e}
 .fc-dong{flex:0 0 52px;width:52px}
 .dong-badge{font-size:10px;color:#2d4a7a;background:#e8edf4;padding:2px 6px;border-radius:4px;font-weight:600}
@@ -575,7 +604,7 @@ mark{background:#fef08a;border-radius:2px}
 </head>
 <body>
 <div class="topbar">
-  <h1>📋 인수인계 관리 [JC01]</h1><span style="font-size:10px;color:#64b5f6;background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:4px;font-weight:400;letter-spacing:0.5px">v1.4.21</span>
+  <h1>📋 인수인계 관리 [JC01]</h1><span style="font-size:10px;color:#64b5f6;background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:4px;font-weight:400;letter-spacing:0.5px">v1.4.22</span>
   <span class="badge" id="tbadge">0건</span>
   <span id="netbadge" onclick="showNetInfo()" style="font-size:11px;padding:2px 8px;border-radius:99px;cursor:pointer;color:#f87171" title="확인 중...">●</span>
   <div class="spacer"></div>
@@ -672,10 +701,10 @@ mark{background:#fef08a;border-radius:2px}
 </div>
 
 <div class="ctx" id="ctx">
-  <div class="ci" onclick="ctxEdit()">✏️ 수정</div>
+  <div class="ci" id="ciEdit" onclick="ctxEdit()">✏️ 수정</div>
   <div class="ci" onclick="ctxView()">🔍 내용 전체 보기</div>
-  <div class="sep"></div>
-  <div class="ci del" onclick="ctxDel()">🗑️ 삭제</div>
+  <div class="sep" id="ciSep"></div>
+  <div class="ci del" id="ciDel" onclick="ctxDel()">🗑️ 삭제</div>
 </div>
 
 <script>
@@ -694,6 +723,7 @@ const EFG={'#1':'#276749','#2':'#276749','#3':'#276749','#4':'#276749','#5':'#27
 '#41':'#7b341e','#42':'#7b341e','#51':'#553c9a','#52':'#553c9a',
 '#61':'#234e52','#99':'#822727','ATW#61':'#234e52','공통':'#4a5568'};
 
+const MY_DONG='JC01';   // 이 빌드가 쓰기 가능한 동 (Go의 myDong과 동일해야 함)
 let all=[],fil=[],calY,calM,selDate=null,ctxId=null,editId=null;
 
 function today(){return new Date().toISOString().slice(0,10)}
@@ -913,8 +943,14 @@ let shown=0, curQ='';
 function rowHTML(r){
   const bg=EBG[r.equip]||'#e2e8f0', fg=EFG[r.equip]||'#4a5568';
   const pv=r.content;
-  return '<div class="frow'+(r.flag?' flagged':'')+'" id="R'+r.id+'" onclick="rowClick('+r.id+')" oncontextmenu="rowCtx(event,'+r.id+')">'
-    +'<div class="fc fc-flag"><button class="flagbtn'+(r.flag?' on':'')+'" onclick="toggleFlag(event,'+r.id+')" title="최상단 고정">⚑</button></div>'
+  const mine=(r.dong||'JC01')===MY_DONG;
+  // 상대 동 레코드는 읽기 전용: 플래그 버튼을 흐리게 비활성화하고(서버도
+  // dbSetFlag에서 거부), 우클릭 메뉴의 수정/삭제도 rowCtx에서 숨긴다.
+  const flagBtn = mine
+    ? '<button class="flagbtn'+(r.flag?' on':'')+'" onclick="toggleFlag(event,'+r.id+')" title="최상단 고정">⚑</button>'
+    : '<span class="flagbtn dim" title="다른 동 항목은 변경할 수 없습니다">⚑</span>';
+  return '<div class="frow'+(r.flag?' flagged':'')+(mine?'':' foreign')+'" id="R'+r.id+'" onclick="rowClick('+r.id+')" oncontextmenu="rowCtx(event,'+r.id+')">'
+    +'<div class="fc fc-flag">'+flagBtn+'</div>'
     +'<div class="fc fc-dong"><span class="dong-badge">'+(r.dong||'JC01')+'</span></div>'
     +'<div class="fc fc-d">'+fmtDate(r.date)+'</div>'
     +'<div class="fc fc-e"><span class="eb" style="background:'+bg+';color:'+fg+'">'+esc(r.equip)+'</span></div>'
@@ -951,10 +987,11 @@ function renderTable(){
 async function toggleFlag(e,id){
   e.stopPropagation();
   const r=all.find(x=>x.id===id);
-  if(!r) return;
+  if(!r||(r.dong||'JC01')!==MY_DONG) return;
   r.flag=!r.flag;          // 낙관적 갱신: 즉시 최상단으로
   applyFilter();
-  await dbSetFlag(id,r.flag);
+  const ok=await dbSetFlag(id,r.flag);
+  if(!ok){ r.flag=!r.flag; applyFilter(); }
 }
 
 function rowClick(id){
@@ -971,6 +1008,12 @@ function rowClick(id){
 
 function rowCtx(e,id){
   e.preventDefault(); ctxId=id;
+  const r=all.find(x=>x.id===id);
+  const mine=r&&(r.dong||'JC01')===MY_DONG;
+  // 상대 동 항목은 우클릭 메뉴에서 수정/삭제를 숨긴다 (읽기 전용).
+  document.getElementById('ciEdit').style.display=mine?'':'none';
+  document.getElementById('ciDel').style.display=mine?'':'none';
+  document.getElementById('ciSep').style.display=mine?'':'none';
   const c=document.getElementById('ctx');
   c.style.left=e.clientX+'px'; c.style.top=e.clientY+'px'; c.classList.add('open');
   rowClick(id);
@@ -979,13 +1022,14 @@ function closeCtx(){document.getElementById('ctx').classList.remove('open')}
 document.addEventListener('click',closeCtx);
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeCtx();closeModal();}});
 
-function ctxEdit(){closeCtx();if(ctxId!==null){const r=all.find(r=>r.id===ctxId);if(r)openModal(r);}}
+function ctxEdit(){closeCtx();if(ctxId!==null){const r=all.find(r=>r.id===ctxId);if(r&&(r.dong||'JC01')===MY_DONG)openModal(r);}}
 function ctxView(){closeCtx();if(ctxId!==null){const r=all.find(r=>r.id===ctxId);if(r)viewFull(r);}}
 async function ctxDel(){
   closeCtx();
   if(ctxId===null)return;
   if(!confirm('선택한 항목을 삭제하시겠습니까?'))return;
-  await dbDelete(ctxId);
+  const ok=await dbDelete(ctxId);
+  if(!ok){alert('다른 동의 항목은 삭제할 수 없습니다.');return;}
   all=all.filter(r=>r.id!==ctxId);
   applyFilter(); if(selDate)renderDetail(selDate);
 }
@@ -1039,20 +1083,18 @@ function openModal(rec){
   editId=rec?rec.id:null;
   document.getElementById('mtitle').textContent=rec?'항목 수정':'새 항목 추가';
 
-  const curDong = document.getElementById('fD').value || 'JC01';
-
-  // 새 항목 추가 시: 현재 화면에서 선택된 동과 같은 동에서 가장 최근에
-  // 작성된 항목의 근무자/구분을 기본값으로 채운다 (반복 입력 편의를 위함).
-  // JC01/JC02가 ID 대역을 나눠 쓰게 되면서 (100000번대/200000번대) 전체
-  // 레코드 중 ID 최댓값은 더 이상 "가장 최근"을 의미하지 않으므로, 같은
-  // 동으로 먼저 걸러낸 뒤 그 안에서 최댓값을 찾는다.
+  // 새 항목은 항상 내 동(MY_DONG)으로만 생성 가능. 근무자/구분 기본값도
+  // 내 동에서 가장 최근(최대 id) 레코드를 따라간다.
   let lastRecord=null;
   if(!rec && all.length){
-    const dongRecords = all.filter(r=>(r.dong||'JC01')===curDong);
+    const dongRecords = all.filter(r=>(r.dong||'JC01')===MY_DONG);
     if(dongRecords.length) lastRecord = dongRecords.reduce((a,b)=> (b.id>a.id?b:a), dongRecords[0]);
   }
 
-  document.getElementById('fdong').value = rec ? (rec.dong||'JC01') : curDong;
+  // 동 선택은 내 동으로 고정하고 잠근다 (다른 동 레코드 생성 방지).
+  const fdong=document.getElementById('fdong');
+  fdong.value = MY_DONG;
+  fdong.disabled = true;
   updateEquipModal();
   document.getElementById('fd').value=rec?rec.date:today();
   document.getElementById('fe').value=rec?rec.equip:'';
@@ -1076,7 +1118,7 @@ async function save(){
   if(editId!==null){
     await dbUpdate(editId,date,equip,worker,cat,content,dong);
     const i=all.findIndex(r=>r.id===editId);
-    if(i>=0)all[i]={id:editId,date,equip,worker,category:cat,content,dong};
+    if(i>=0)all[i]={...all[i],id:editId,date,equip,worker,category:cat,content,dong};
   }else{
     const raw=await dbAdd(date,equip,worker,cat,content,dong);
     all.push(JSON.parse(raw));

@@ -29,7 +29,7 @@ goapp/main_jc02_v142.go.tmp    JC02 소스 (정본)
 
 ## 🔨 빌드 & 버전
 
-현재 버전: **v1.4.40**
+현재 버전: **v1.4.41**
 
 ```bash
 export GOPATH=$HOME/go && export PATH=$PATH:/usr/local/go/bin
@@ -37,7 +37,7 @@ cd goapp
 # JC01 (JC02는 파일명만 jc02로)
 cp main_jc01_v142.go.tmp main.go && gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.40.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.41.exe .
 rm -f main.go
 ```
 
@@ -54,22 +54,22 @@ rm -f main.go
 확인은 `diff main_jc01_v142.go.tmp main_jc02_v142.go.tmp` 한 줄이면 된다 —
 두 파일을 각각 Read 하지 말 것.
 
-다른 곳 (JC01 → JC02 기준 라인번호, v1.4.40 시점):
+다른 곳 (JC01 → JC02 기준 라인번호, v1.4.41 시점):
 | 줄 | JC01 | JC02 |
 |----|------|------|
-| 306 | 주석 "JC01은 100000번대" | "JC02는 200000번대" |
-| 309 | `max := 100000` | `max := 200000` |
-| 311 | `r.ID < 200000` | `r.ID < 300000` |
+| 307 | 주석 "JC01은 100000번대" | "JC02는 200000번대" |
+| 310 | `max := 100000` | `max := 200000` |
+| 312 | `r.ID < 200000` | `r.ID < 300000` |
 | 329 | `const myDong = "JC01"` | `= "JC02"` (Go 쓰기권한 동) |
-| 469 | `...\1동\Pending Item&지속관리` | `...\CELL_MEE_..\P10 Cell Sorter` (파츠폴더) |
-| 480 | `"JC_1 Sorter 필요 Parts"` | `"JC_2 Sorter 필요 Parts2"` (파츠파일명) |
-| 680 | `[JC01]` (제목) | `[JC02]` |
-| 693-694 | `JC01 selected` | `JC02 selected` |
-| 747 | `<option value="JC02">` | `<option value="JC02" selected>` |
-| 819 | `const MY_DONG='JC01'` | `='JC02'` (JS 쓰기권한 동) |
-| 827 | `memoSave('hk_memo',…)` | `memoSave('hk_memo_jc02',…)` |
-| 833 | `memoLoad('hk_memo')` | `memoLoad('hk_memo_jc02')` |
-| 983 | `fD.value='JC01'` | `='JC02'` |
+| 470 | `...\1동\Pending Item&지속관리` | `...\CELL_MEE_..\P10 Cell Sorter` (파츠폴더) |
+| 481 | `"JC_1 Sorter 필요 Parts"` | `"JC_2 Sorter 필요 Parts2"` (파츠파일명) |
+| 684 | `[JC01]` (제목) | `[JC02]` |
+| 697-698 | `JC01 selected` | `JC02 selected` |
+| 751 | `<option value="JC02">` | `<option value="JC02" selected>` |
+| 823 | `const MY_DONG='JC01'` | `='JC02'` (JS 쓰기권한 동) |
+| 831 | `memoSave('hk_memo',…)` | `memoSave('hk_memo_jc02',…)` |
+| 837 | `memoLoad('hk_memo')` | `memoLoad('hk_memo_jc02')` |
+| 987 | `fD.value='JC01'` | `='JC02'` |
 
 > 참고: PM 체크리스트 저장 키는 `'hk_pm_'+MY_DONG`으로 **양쪽 파일 동일**(변수라 diff 아님).
 
@@ -178,13 +178,28 @@ type Record struct {
   키 `'hk_pm_'+MY_DONG`(동별 파일), 값 `{설비:내용}` JSON(`pmData`). `renderPmTable`이
   시작 시 표를 그린다(그 뒤엔 셀 편집만, 재렌더 없음 → 포커스 유지). `localStorage`로
   되돌리지 말 것(메모와 동일 — opaque origin 유실). v1.4.30의 드롭다운 방식은 폐기.
-  **내용 칸 폭 15% 축소 (v1.4.40)** — `grid-template-columns`가
-  `max-content .85fr max-content .85fr .3fr`. 내용 칸(`1fr`이던 것)을 `.85fr`
-  두 개로 줄이고, 남는 `.3fr`을 5번째(빈) 트랙으로 둬서 오른쪽 여백으로 흡수시켰다
-  (각 행은 셀 4개만 만들므로 5번째 트랙엔 내용이 안 들어가고 폭만 차지함 —
-  `.pm-grid`의 회색 배경이 그 여백에 비쳐 보임, 의도된 동작). `fr`은 상대값이라
-  다른 `fr` 트랙이 없으면 줄여도 그대로 꽉 채우므로, 이렇게 트랙을 하나 추가하는
-  방식으로 실제 폭을 줄였다.
+  **내용 칸 폭 15% 축소 (v1.4.40, v1.4.41에서 배치 버그 수정)** —
+  `grid-template-columns`가 `max-content .85fr max-content .85fr .3fr`. 내용
+  칸(`1fr`이던 것)을 `.85fr` 두 개로 줄이고, 남는 `.3fr`을 5번째 트랙으로 둬서
+  오른쪽 여백으로 흡수시켰다. **주의**: 트랙만 5개로 늘리면 CSS Grid의 auto-flow가
+  칸을 4개가 아닌 5개 단위로 채우면서 매 논리적 행마다 칸이 하나씩 밀리는 버그가
+  난다(v1.4.40에서 실제로 발생 — 사용자 스크린샷으로 발견). `renderPmTable`이
+  DOM에 4개씩(설비|내용|설비|내용) 순서로 셀을 넣는 것과 grid-template-columns의
+  트랙 수(5)가 안 맞아서 생기는 문제이므로, 5번째 트랙은 "폭만 있고 절대 채워지지
+  않는 트랙"으로 강제해야 한다 — `.pm-grid>*:nth-child(4n+1..4n)`으로 매 셀에
+  `grid-column:1~4`를 명시해 auto-flow가 5번째 칸을 절대 쓰지 않게 고정했다
+  (v1.4.41). `fr`은 상대값이라 다른 `fr` 트랙이 없으면 계수를 줄여도 그대로 꽉
+  채우므로, 폭을 줄이려면 이렇게 트랙을 추가하는 방식이 맞다 — 다만 **트랙을
+  추가할 때마다 반드시 `nth-child`로 열을 명시 고정할 것** (안 그러면 이 버그가
+  재발한다).
+  **`.pm-col` 고정폭으로 전환, 메인 목록에 여백 양보 (v1.4.41)** — 예전엔
+  `.pm-col{flex:1;min-width:360px}`로 `.left`(메인 목록)와 똑같이 늘어나서, 내용
+  칸을 줄여도 그 여백이 PM 칸 안에서만 남고 메인 목록은 넓어지지 않았다.
+  `.pm-col{flex:0 0 360px;width:360px}`로 바꿔 더 이상 늘어나지 않게 고정 —
+  PM 체크리스트는 항상 달력(`.right`) 바로 왼쪽에 필요한 만큼의 폭만 차지하고,
+  창을 넓히거나 내용 칸 폭을 줄여서 생기는 여유 공간은 전부 `flex:1`인
+  `.left`(메인 목록/인수인계 내용)가 가져간다. `.pm-col`을 다시 `flex:1`로
+  되돌리지 말 것 — 메인 목록이 좁아지는 예전 문제로 되돌아간다.
 - **근무자 셀 여러 줄 (v1.4.33)** — `rowHTML`의 근무자 칸은 `workerCell(r.worker,r.shift)`로
   렌더. 쉼표로 구분된 근무자를 `<br>`로 나눠 여러 줄로 보이고, 가장 긴 이름
   글자수에 따라 폰트를 12→8px로 줄여 근무자 칸(`.fc-w`)에 맞춘다. `<br>`가 flex에서

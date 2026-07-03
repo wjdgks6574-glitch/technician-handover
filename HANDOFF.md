@@ -1,6 +1,6 @@
 # 인수인계 관리 프로그램 - 작업 인수인계 문서
 
-## 현재 버전: v1.4.40
+## 현재 버전: v1.4.41
 
 Go + WebView2 기반 Windows 데스크톱 앱. JC01(1동)/JC02(2동) 두 변형이 거의 동일한
 소스 구조를 공유하며, 각각 별도의 .exe로 빌드됨.
@@ -38,13 +38,13 @@ cd goapp
 cp main_jc01_v142.go.tmp main.go
 gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.40.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.41.exe .
 
 # JC02
 cp main_jc02_v142.go.tmp main.go
 gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC02_v1.4.40.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC02_v1.4.41.exe .
 ```
 
 **주의**: `-ldflags`에 `-s -w`를 넣지 마세요. 심볼 제거(압축)가 백신 오탐의
@@ -332,7 +332,7 @@ JS `renderDetail`. **상세 패널을 되살리지 말 것** — 날짜 열람�
   **다시 `localStorage`로 되돌리지 말 것 — 유실 재발.** (`DataPath` 고정 자체는
   WebView2 캐시 등을 우리 폴더에 모으는 용도로 그대로 유지.)
 
-### 설비별 PM 체크리스트 (v1.4.30 도입, v1.4.31 상시 표 방식으로 변경)
+### 설비별 PM 체크리스트 (v1.4.30 도입, v1.4.31 상시 표 방식으로 변경, v1.4.40/41 폭 조정)
 설비마다 PM(예방정비) 시 할 일을 적어두는 표. 메모처럼 **로컬 파일 저장**이라 껐다
 켜도 유지된다.
 - **위치/형태 (v1.4.31)**: 메인 목록(`.left`)과 달력(`.right`) **사이**의 독립 칼럼
@@ -351,16 +351,44 @@ JS `renderDetail`. **상세 패널을 되살리지 말 것** — 날짜 열람�
 - 예전 v1.4.30은 드롭다운(설비 선택) + textarea 1개였으나, 상시로 다 보이게 표로 바꿈.
   메모처럼 **localStorage로 되돌리지 말 것**(opaque origin 유실).
 
-**내용 칸 폭 15% 축소 (v1.4.40)**: `.pm-grid`의 `grid-template-columns`을
-`max-content 1fr max-content 1fr`에서 `max-content .85fr max-content .85fr .3fr`로
-바꿨다. CSS Grid의 `fr` 단위는 **상대 비율**이라, 다른 `fr` 트랙이 없으면 값을
-줄여도(예: `1fr`→`.85fr` 단독) 여전히 남는 공간 전체를 그대로 차지해버려서
-아무 효과가 없다 — 그래서 줄어든 만큼(`.3fr`)을 흡수할 **5번째 트랙을 추가**했다.
-각 행(`pmCells`)은 셀을 4개(설비|내용|설비|내용)만 만들기 때문에 5번째 트랙에는
-아무 것도 안 들어가고 폭만 차지 → 오른쪽에 `.pm-grid`의 회색 배경이 비치는 여백으로
-보인다(의도된 동작, 버그 아님). 비율을 더 줄이거나 늘리려면 `.85fr`/`.3fr` 두
-숫자의 합이 원래 `1fr`+`1fr`=2였다는 걸 기준으로 계산할 것
-(예: 30% 줄이려면 `.7fr .7fr .6fr`).
+**내용 칸 폭 15% 축소 (v1.4.40, v1.4.41에서 배치 버그 수정)**: `.pm-grid`의
+`grid-template-columns`을 `max-content 1fr max-content 1fr`에서
+`max-content .85fr max-content .85fr .3fr`로 바꿨다. CSS Grid의 `fr` 단위는
+**상대 비율**이라, 다른 `fr` 트랙이 없으면 값을 줄여도(예: `1fr`→`.85fr` 단독)
+여전히 남는 공간 전체를 그대로 차지해버려서 아무 효과가 없다 — 그래서 줄어든
+만큼(`.3fr`)을 흡수할 **5번째 트랙을 추가**했다.
+
+**v1.4.40의 버그(사용자 스크린샷으로 발견) → v1.4.41에서 수정**: 트랙만 5개로
+늘리고 끝냈더니, `renderPmTable`이 DOM에 셀을 4개씩(설비|내용|설비|내용) 순서로
+넣는 것과 `grid-template-columns`의 트랙 수(5)가 안 맞아서, CSS Grid의 자동
+배치(auto-flow)가 4개가 아닌 5개 단위로 셀을 채우며 매 논리적 행마다 칸이 하나씩
+밀리는 문제가 발생했다(설비명·내용이 서로 다른 줄의 값과 뒤섞여 보임, 헤더 줄에도
+엉뚱한 셀이 끼어듦). "5번째 트랙엔 아무 것도 안 들어간다"는 가정이 틀렸던 것 —
+grid-template-columns이 선언하는 트랙 수와 auto-flow가 실제로 채우는 칸 수는
+별개이며, 명시적으로 배치를 지정하지 않으면 브라우저가 전체 트랙 수 기준으로
+순서대로 채운다. 고쳐서, 매 셀에 `grid-column`을 강제로 1~4번만 쓰도록
+지정해 5번째 트랙을 **절대 채워지지 않는 순수 여백 트랙**으로 만들었다:
+```css
+.pm-grid>*:nth-child(4n+1){grid-column:1}
+.pm-grid>*:nth-child(4n+2){grid-column:2}
+.pm-grid>*:nth-child(4n+3){grid-column:3}
+.pm-grid>*:nth-child(4n){grid-column:4}
+```
+이제 5번째 트랙은 폭만 차지하고(`.pm-grid`의 회색 배경이 비쳐 보임, 의도된
+동작), 실제 셀은 항상 1~4번 칸에만 배치된다. **앞으로 그리드 트랙을 추가/변경할
+때는 반드시 이렇게 `nth-child`로 열을 명시 고정할 것** — 안 그러면 이 배치
+밀림 버그가 재발한다. 비율을 더 줄이거나 늘리려면 `.85fr`/`.3fr` 두 숫자의
+합이 원래 `1fr`+`1fr`=2였다는 걸 기준으로 계산할 것(예: 30% 줄이려면
+`.7fr .7fr .6fr`).
+
+**`.pm-col` 고정폭 전환, 메인 목록에 여백 양보 (v1.4.41)**: 내용 칸을 줄여도
+`.pm-col` 자체가 `flex:1;min-width:360px`로 메인 목록(`.left`)과 똑같이 늘어나는
+구조라, 줄어든 폭만큼의 여백이 PM 칸 안에서만 남고 메인 목록은 넓어지지 않았다.
+`.pm-col{flex:0 0 360px;width:360px}`로 바꿔 더는 창 크기에 따라 늘어나지 않게
+고정했다. PM 체크리스트는 이제 항상 달력(`.right`) 칼럼 바로 왼쪽에 필요한
+만큼의 폭만 차지하고, 창을 넓히거나 내용 칸 폭을 줄여서 생기는 여유 공간은
+전부 `flex:1`인 `.left`(메인 목록/인수인계 내용)가 흡수한다. `.pm-col`을 다시
+`flex:1`로 되돌리지 말 것 — 메인 목록이 좁아지는 예전 문제로 되돌아간다.
 
 ---
 

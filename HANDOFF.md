@@ -1,6 +1,6 @@
 # 인수인계 관리 프로그램 - 작업 인수인계 문서
 
-## 현재 버전: v1.4.41
+## 현재 버전: v1.4.42
 
 Go + WebView2 기반 Windows 데스크톱 앱. JC01(1동)/JC02(2동) 두 변형이 거의 동일한
 소스 구조를 공유하며, 각각 별도의 .exe로 빌드됨.
@@ -38,13 +38,13 @@ cd goapp
 cp main_jc01_v142.go.tmp main.go
 gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.41.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.42.exe .
 
 # JC02
 cp main_jc02_v142.go.tmp main.go
 gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC02_v1.4.41.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC02_v1.4.42.exe .
 ```
 
 **주의**: `-ldflags`에 `-s -w`를 넣지 마세요. 심볼 제거(압축)가 백신 오탐의
@@ -332,7 +332,7 @@ JS `renderDetail`. **상세 패널을 되살리지 말 것** — 날짜 열람�
   **다시 `localStorage`로 되돌리지 말 것 — 유실 재발.** (`DataPath` 고정 자체는
   WebView2 캐시 등을 우리 폴더에 모으는 용도로 그대로 유지.)
 
-### 설비별 PM 체크리스트 (v1.4.30 도입, v1.4.31 상시 표 방식으로 변경, v1.4.40/41 폭 조정)
+### 설비별 PM 체크리스트 (v1.4.30 도입, v1.4.31 상시 표 방식으로 변경, v1.4.40/41 폭 조정, v1.4.42 셀 스크롤)
 설비마다 PM(예방정비) 시 할 일을 적어두는 표. 메모처럼 **로컬 파일 저장**이라 껐다
 켜도 유지된다.
 - **위치/형태 (v1.4.31)**: 메인 목록(`.left`)과 달력(`.right`) **사이**의 독립 칼럼
@@ -389,6 +389,18 @@ grid-template-columns이 선언하는 트랙 수와 auto-flow가 실제로 채�
 만큼의 폭만 차지하고, 창을 넓히거나 내용 칸 폭을 줄여서 생기는 여유 공간은
 전부 `flex:1`인 `.left`(메인 목록/인수인계 내용)가 흡수한다. `.pm-col`을 다시
 `flex:1`로 되돌리지 말 것 — 메인 목록이 좁아지는 예전 문제로 되돌아간다.
+
+**내용 칸 세로 최대높이 + 셀 내부 스크롤 (v1.4.42)**: 한 셀에 내용을 길게
+입력하면(사용자 스크린샷: `#`+`d` 40여 개, 또는 여러 줄) 그 내용 칸이 세로로
+무한정 늘어나면서, 같은 행의 설비 이름칸(teal)까지 함께 커져 표 전체가 깨져
+보였다. CSS Grid에서 한 행의 높이는 그 행에 속한 셀들 중 **가장 높은 셀**에
+맞춰지기 때문이다. `.pm-cell.pm-text`에 `max-height:120px;overflow-y:auto`를
+줘서, 내용이 120px를 넘으면 그 칸 안에서만 세로 스크롤되고 칸(=행) 높이는
+120px에서 멈추게 했다. 이러면 옆 설비칸도 덩달아 안 커진다. 참고로 `.pm-grid`
+자체에도 `overflow-y:auto`가 있지만 그건 **표 전체**를 위아래로 스크롤하는
+것이고, 이번 것은 **개별 내용 셀 안**의 스크롤이라 서로 다른 층위다. 이 캡을
+없애거나 `overflow`를 지우면 행 깨짐이 재발하니 유지할 것. (높이를 바꾸려면
+`max-height` 값만 조정하면 된다 — 120px는 10px 폰트 기준 약 7~8줄.)
 
 ---
 

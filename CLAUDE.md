@@ -29,7 +29,7 @@ goapp/main_jc02_v142.go.tmp    JC02 소스 (정본)
 
 ## 🔨 빌드 & 버전
 
-현재 버전: **v1.4.41**
+현재 버전: **v1.4.42**
 
 ```bash
 export GOPATH=$HOME/go && export PATH=$PATH:/usr/local/go/bin
@@ -37,7 +37,7 @@ cd goapp
 # JC01 (JC02는 파일명만 jc02로)
 cp main_jc01_v142.go.tmp main.go && gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.41.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.42.exe .
 rm -f main.go
 ```
 
@@ -54,7 +54,7 @@ rm -f main.go
 확인은 `diff main_jc01_v142.go.tmp main_jc02_v142.go.tmp` 한 줄이면 된다 —
 두 파일을 각각 Read 하지 말 것.
 
-다른 곳 (JC01 → JC02 기준 라인번호, v1.4.41 시점):
+다른 곳 (JC01 → JC02 기준 라인번호, v1.4.42 시점):
 | 줄 | JC01 | JC02 |
 |----|------|------|
 | 307 | 주석 "JC01은 100000번대" | "JC02는 200000번대" |
@@ -200,6 +200,13 @@ type Record struct {
   창을 넓히거나 내용 칸 폭을 줄여서 생기는 여유 공간은 전부 `flex:1`인
   `.left`(메인 목록/인수인계 내용)가 가져간다. `.pm-col`을 다시 `flex:1`로
   되돌리지 말 것 — 메인 목록이 좁아지는 예전 문제로 되돌아간다.
+  **내용 칸 세로 최대높이 + 셀 내부 스크롤 (v1.4.42)** — 한 셀에 내용이 길면
+  그 셀이 세로로 무한정 늘어나 행 전체(설비 이름칸 포함)가 깨져 보였다(사용자
+  스크린샷). `.pm-cell.pm-text`에 `max-height:120px;overflow-y:auto`를 줘서
+  120px를 넘으면 그 칸 안에서만 스크롤되게 했다. CSS Grid 행 높이는 그 행 셀들의
+  최대 높이로 정해지므로, 내용 칸을 120px로 캡하면 행도 120px에서 멈추고 옆
+  설비칸도 같이 안 늘어난다. `.pm-grid` 자체의 세로 스크롤(전체 표)과는 별개 —
+  이건 개별 셀 안 스크롤이다. 캡을 없애거나 `overflow` 지우지 말 것(행 깨짐 재발).
 - **근무자 셀 여러 줄 (v1.4.33)** — `rowHTML`의 근무자 칸은 `workerCell(r.worker,r.shift)`로
   렌더. 쉼표로 구분된 근무자를 `<br>`로 나눠 여러 줄로 보이고, 가장 긴 이름
   글자수에 따라 폰트를 12→8px로 줄여 근무자 칸(`.fc-w`)에 맞춘다. `<br>`가 flex에서

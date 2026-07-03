@@ -599,6 +599,7 @@ select{padding:6px 8px;border:1px solid #cbd5e0;border-radius:6px;font-size:12px
 .fc-d{flex:0 0 68px;width:68px;color:#4a5568;white-space:nowrap}
 .fc-e{flex:0 0 60px;width:60px}
 .fc-w{flex:0 0 88px;width:88px;color:#4a5568;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fc-w .wk{width:100%;line-height:1.2;text-align:center}
 .fc-c{flex:0 0 96px;width:96px}
 .fc-ct{flex:1 1 auto;min-width:0;justify-content:flex-start;align-items:flex-start}
 .fc-ct .pv{white-space:pre-wrap;max-height:146px;overflow:hidden;line-height:1.5;word-break:break-all;width:100%}
@@ -670,7 +671,7 @@ mark{background:#fef08a;border-radius:2px}
 </head>
 <body>
 <div class="topbar">
-  <h1>📋 인수인계 관리 [JC01]</h1><span style="font-size:10px;color:#64b5f6;background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:4px;font-weight:400;letter-spacing:0.5px">v1.4.32</span>
+  <h1>📋 인수인계 관리 [JC01]</h1><span style="font-size:10px;color:#64b5f6;background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:4px;font-weight:400;letter-spacing:0.5px">v1.4.33</span>
   <span class="badge" id="tbadge">0건</span>
   <span id="netbadge" onclick="showNetInfo()" style="font-size:11px;padding:2px 8px;border-radius:99px;cursor:pointer;color:#f87171" title="확인 중...">●</span>
   <div class="spacer"></div>
@@ -1039,6 +1040,15 @@ function hl(s,q){
 // 하단에 가까워지면 다음 묶음을 렌더한다. 초기 렌더는 수십 건뿐이라 즉시 뜬다.
 const RCHUNK=60;
 let shown=0, curQ='';
+// 근무자 셀: 쉼표로 구분된 여러 근무자는 줄바꿈(<br>)으로 여러 줄로 보이게 하고,
+// 가장 긴 이름 글자수에 맞춰 폰트를 줄여 88px 칸에 넘치지 않게 한다.
+function workerCell(w){
+  const parts=String(w||'').split(',').map(s=>s.trim()).filter(Boolean);
+  const maxLen=parts.reduce((m,p)=>Math.max(m,[...p].length),0);
+  let fs=12;
+  if(maxLen>=9) fs=8; else if(maxLen>=7) fs=9; else if(maxLen>=6) fs=10; else if(maxLen>=5) fs=11;
+  return '<div class="fc fc-w"><div class="wk" style="font-size:'+fs+'px">'+parts.map(esc).join('<br>')+'</div></div>';
+}
 function rowHTML(r){
   const bg=EBG[r.equip]||'#e2e8f0', fg=EFG[r.equip]||'#4a5568';
   const pv=r.content;
@@ -1053,7 +1063,7 @@ function rowHTML(r){
     +'<div class="fc fc-dong"><span class="dong-badge">'+(r.dong||'JC01')+'</span></div>'
     +'<div class="fc fc-d">'+fmtDate(r.date)+'</div>'
     +'<div class="fc fc-e"><span class="eb" style="background:'+bg+';color:'+fg+'">'+esc(r.equip)+'</span></div>'
-    +'<div class="fc fc-w">'+esc(r.worker)+'</div>'
+    +workerCell(r.worker)
     +'<div class="fc fc-c"><span class="chip c'+r.category.replace(/\s/g,'')+'">'+esc(r.category)+'</span></div>'
     +'<div class="fc fc-ct"><div class="pv">'+hl(pv,curQ)+'</div></div>'
     +'</div>';

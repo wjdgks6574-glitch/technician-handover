@@ -1,6 +1,6 @@
 # 인수인계 관리 프로그램 - 작업 인수인계 문서
 
-## 현재 버전: v1.4.22
+## 현재 버전: v1.4.23
 
 Go + WebView2 기반 Windows 데스크톱 앱. JC01(1동)/JC02(2동) 두 변형이 거의 동일한
 소스 구조를 공유하며, 각각 별도의 .exe로 빌드됨.
@@ -38,13 +38,13 @@ cd goapp
 cp main_jc01_v142.go.tmp main.go
 gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.22.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.23.exe .
 
 # JC02
 cp main_jc02_v142.go.tmp main.go
 gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC02_v1.4.22.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC02_v1.4.23.exe .
 ```
 
 **주의**: `-ldflags`에 `-s -w`를 넣지 마세요. 심볼 제거(압축)가 백신 오탐의
@@ -184,10 +184,13 @@ JC01/JC02가 같은 `records.json`을 공유하면서 상대 동 데이터를 �
   일치해야 함 — 13곳 diff에 포함).
 - **서버 최종 방어**(UI를 우회해도 막힘): `dbAdd`는 dong을 항상 `myDong`으로 강제,
   `dbUpdate/dbDelete/dbSetFlag`는 `isOwnRecord(id)`로 상대 동이면 `false` 반환(무동작).
-- **UI**: 상대 동 행은 `.foreign`(살짝 회색)으로 표시, ⚑ 버튼 비활성(`.dim`),
+- **UI**: 상대 동 행은 `.foreign`(살짝 회색 배경)으로 표시, ⚑ 버튼 비활성(`.dim`),
   우클릭 메뉴에서 수정/삭제 숨김(`rowCtx`), 새 항목 모달의 동 선택은 `MY_DONG`으로
   고정·`disabled`. 읽기(상세 보기)는 상대 동도 허용.
 - 읽기(`dbGetAll`)는 항상 양쪽 동 전체를 그대로 준다(달력·목록은 fD 필터로 표시).
+- **글자색은 항상 검은색 유지 (v1.4.23)** — 처음엔 `.frow.foreign .fc-ct .pv`에
+  회색(`#a0aec0`) 글자색도 줬으나 가독성이 떨어져 제거. 상대 동 표시는 배경색
+  차이만으로 하고 글자는 흐리게 하지 말 것.
 
 ### 새 항목 모달 기본값 (v1.4.10)
 - 동: 현재 화면 필터의 동

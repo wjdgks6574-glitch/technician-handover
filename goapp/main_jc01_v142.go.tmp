@@ -533,7 +533,6 @@ select{padding:6px 8px;border:1px solid #cbd5e0;border-radius:6px;font-size:12px
 .flagbtn.on{color:#e53e3e}
 .flagbtn.dim{color:#e2e8f0;cursor:default}
 .frow.foreign{background:#fafbfc}
-.frow.foreign .fc-ct .pv{color:#a0aec0}
 .frow.flagged{box-shadow:inset 3px 0 0 #e53e3e}
 .fc-dong{flex:0 0 52px;width:52px}
 .dong-badge{font-size:10px;color:#2d4a7a;background:#e8edf4;padding:2px 6px;border-radius:4px;font-weight:600}
@@ -604,7 +603,7 @@ mark{background:#fef08a;border-radius:2px}
 </head>
 <body>
 <div class="topbar">
-  <h1>📋 인수인계 관리 [JC01]</h1><span style="font-size:10px;color:#64b5f6;background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:4px;font-weight:400;letter-spacing:0.5px">v1.4.22</span>
+  <h1>📋 인수인계 관리 [JC01]</h1><span style="font-size:10px;color:#64b5f6;background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:4px;font-weight:400;letter-spacing:0.5px">v1.4.23</span>
   <span class="badge" id="tbadge">0건</span>
   <span id="netbadge" onclick="showNetInfo()" style="font-size:11px;padding:2px 8px;border-radius:99px;cursor:pointer;color:#f87171" title="확인 중...">●</span>
   <div class="spacer"></div>

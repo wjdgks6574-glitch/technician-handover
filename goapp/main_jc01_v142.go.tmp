@@ -25,6 +25,7 @@ type Record struct {
 	Date     string `json:"date"`
 	Equip    string `json:"equip"`
 	Worker   string `json:"worker"`
+	Shift    string `json:"shift,omitempty"`
 	Category string `json:"category"`
 	Content  string `json:"content"`
 	Dong     string `json:"dong"`
@@ -352,13 +353,14 @@ func handleBind(w webview.WebView) {
 	// 즉시 바꾸고 바로 반환한 뒤, 실제 저장은 requestSave로 백그라운드에 맡긴다.
 	// 소유권 검사(Dong==myDong)는 lock 안 루프에서 하므로 상대 동 레코드는 여전히
 	// 거부된다(서버 최종 방어, 이제 변경과 원자적).
-	w.Bind("dbAdd", func(date, equip, worker, category, content, dong string) string {
+	w.Bind("dbAdd", func(date, equip, worker, shift, category, content, dong string) string {
 		recMu.Lock()
 		added := Record{
 			ID:       nextID(records),
 			Date:     strings.TrimSpace(date),
 			Equip:    strings.TrimSpace(equip),
 			Worker:   strings.TrimSpace(worker),
+			Shift:    strings.TrimSpace(shift),
 			Category: strings.TrimSpace(category),
 			Content:  strings.TrimSpace(content),
 			Dong:     myDong, // 클라이언트가 보낸 dong은 무시 - 항상 내 동으로 생성
@@ -369,7 +371,7 @@ func handleBind(w webview.WebView) {
 		return toJSON(added)
 	})
 
-	w.Bind("dbUpdate", func(id int, date, equip, worker, category, content, dong string) bool {
+	w.Bind("dbUpdate", func(id int, date, equip, worker, shift, category, content, dong string) bool {
 		recMu.Lock()
 		found := false
 		for i := range records {
@@ -377,6 +379,7 @@ func handleBind(w webview.WebView) {
 				records[i].Date = strings.TrimSpace(date)
 				records[i].Equip = strings.TrimSpace(equip)
 				records[i].Worker = strings.TrimSpace(worker)
+				records[i].Shift = strings.TrimSpace(shift)
 				records[i].Category = strings.TrimSpace(category)
 				records[i].Content = strings.TrimSpace(content)
 				// Dong은 내 동으로 고정 - 레코드를 다른 동으로 옮기는 것도 금지
@@ -600,6 +603,7 @@ select{padding:6px 8px;border:1px solid #cbd5e0;border-radius:6px;font-size:12px
 .fc-e{flex:0 0 56px;width:56px;padding-left:3px;padding-right:3px}
 .fc-w{flex:0 0 68px;width:68px;color:#4a5568;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-left:4px;padding-right:4px}
 .fc-w .wk{width:100%;line-height:1.2;text-align:center}
+.wk-shift{font-size:9px;font-weight:700;color:#2b6cb0;margin-bottom:1px}
 .fc-c{flex:0 0 96px;width:96px}
 .fc-ct{flex:1 1 auto;min-width:0;justify-content:flex-start;align-items:flex-start}
 .fc-ct .pv{white-space:pre-wrap;max-height:146px;overflow:hidden;line-height:1.5;word-break:break-all;width:100%}
@@ -671,7 +675,7 @@ mark{background:#fef08a;border-radius:2px}
 </head>
 <body>
 <div class="topbar">
-  <h1>📋 인수인계 관리 [JC01]</h1><span style="font-size:10px;color:#64b5f6;background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:4px;font-weight:400;letter-spacing:0.5px">v1.4.36</span>
+  <h1>📋 인수인계 관리 [JC01]</h1><span style="font-size:10px;color:#64b5f6;background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:4px;font-weight:400;letter-spacing:0.5px">v1.4.37</span>
   <span class="badge" id="tbadge">0건</span>
   <span id="netbadge" onclick="showNetInfo()" style="font-size:11px;padding:2px 8px;border-radius:99px;cursor:pointer;color:#f87171" title="확인 중...">●</span>
   <div class="spacer"></div>
@@ -756,7 +760,13 @@ mark{background:#fef08a;border-radius:2px}
           <option>감소활동</option>
         </select>
       </div>
-      <div></div>
+      <div class="fr"><label>근무조</label>
+        <select id="fs">
+          <option value="">선택</option>
+          <option value="주">주</option>
+          <option value="야">야</option>
+        </select>
+      </div>
     </div>
     <div class="fr"><label>내용</label>
       <textarea id="fct" placeholder="증상 → 조치 → 결과&#10;- 항목은 줄바꿈으로 구분"></textarea>
@@ -1058,13 +1068,15 @@ function hl(s,q){
 const RCHUNK=60;
 let shown=0, curQ='';
 // 근무자 셀: 쉼표로 구분된 여러 근무자는 줄바꿈(<br>)으로 여러 줄로 보이게 하고,
-// 가장 긴 이름 글자수에 맞춰 폰트를 줄여 88px 칸에 넘치지 않게 한다.
-function workerCell(w){
+// 가장 긴 이름 글자수에 맞춰 폰트를 줄여 88px 칸에 넘치지 않게 한다. shift(주/야)가
+// 있으면 이름 위에 한 줄 더 붙인다.
+function workerCell(w,shift){
   const parts=String(w||'').split(',').map(s=>s.trim()).filter(Boolean);
   const maxLen=parts.reduce((m,p)=>Math.max(m,[...p].length),0);
   let fs=12;
   if(maxLen>=9) fs=8; else if(maxLen>=7) fs=9; else if(maxLen>=6) fs=10; else if(maxLen>=5) fs=11;
-  return '<div class="fc fc-w"><div class="wk" style="font-size:'+fs+'px">'+parts.map(esc).join('<br>')+'</div></div>';
+  const shiftHtml=shift?'<div class="wk-shift">'+esc(shift)+'</div>':'';
+  return '<div class="fc fc-w"><div class="wk" style="font-size:'+fs+'px">'+shiftHtml+parts.map(esc).join('<br>')+'</div></div>';
 }
 function rowHTML(r){
   const bg=EBG[r.equip]||'#e2e8f0', fg=EFG[r.equip]||'#4a5568';
@@ -1080,7 +1092,7 @@ function rowHTML(r){
     +'<div class="fc fc-dong"><span class="dong-badge">'+(r.dong||'JC01')+'</span></div>'
     +'<div class="fc fc-d">'+fmtDate(r.date)+'</div>'
     +'<div class="fc fc-e"><span class="eb" style="background:'+bg+';color:'+fg+'">'+esc(r.equip)+'</span></div>'
-    +workerCell(r.worker)
+    +workerCell(r.worker,r.shift)
     +'<div class="fc fc-c"><span class="chip c'+r.category.replace(/\s/g,'')+'">'+esc(r.category)+'</span></div>'
     +'<div class="fc fc-ct"><div class="pv">'+hl(pv,curQ)+'</div></div>'
     +'</div>';
@@ -1221,6 +1233,7 @@ function openModal(rec){
   document.getElementById('fd').value=rec?rec.date:today();
   document.getElementById('fe').value=rec?rec.equip:'';
   document.getElementById('fw').value = rec ? rec.worker : (lastRecord ? lastRecord.worker : '');
+  document.getElementById('fs').value = rec ? (rec.shift||'') : '';
   document.getElementById('fc').value = rec ? rec.category : (lastRecord ? lastRecord.category : '');
   document.getElementById('fct').value=rec?rec.content:'';
   document.getElementById('mbg').classList.add('open');
@@ -1234,15 +1247,16 @@ async function save(){
   const date=document.getElementById('fd').value.trim();
   const equip=document.getElementById('fe').value.trim();
   const worker=document.getElementById('fw').value.trim();
+  const shift=document.getElementById('fs').value.trim();
   const cat=document.getElementById('fc').value.trim();
   const content=document.getElementById('fct').value.trim();
   if(!date||!equip||!cat||!content){alert('필수 항목을 입력해주세요.');return;}
   if(editId!==null){
-    await dbUpdate(editId,date,equip,worker,cat,content,dong);
+    await dbUpdate(editId,date,equip,worker,shift,cat,content,dong);
     const i=all.findIndex(r=>r.id===editId);
-    if(i>=0)all[i]={...all[i],id:editId,date,equip,worker,category:cat,content,dong};
+    if(i>=0)all[i]={...all[i],id:editId,date,equip,worker,shift,category:cat,content,dong};
   }else{
-    const raw=await dbAdd(date,equip,worker,cat,content,dong);
+    const raw=await dbAdd(date,equip,worker,shift,cat,content,dong);
     all.push(JSON.parse(raw));
   }
   closeModal();

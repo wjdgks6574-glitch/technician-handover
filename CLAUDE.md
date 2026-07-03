@@ -29,7 +29,7 @@ goapp/main_jc02_v142.go.tmp    JC02 소스 (정본)
 
 ## 🔨 빌드 & 버전
 
-현재 버전: **v1.4.36**
+현재 버전: **v1.4.37**
 
 ```bash
 export GOPATH=$HOME/go && export PATH=$PATH:/usr/local/go/bin
@@ -37,13 +37,13 @@ cd goapp
 # JC01 (JC02는 파일명만 jc02로)
 cp main_jc01_v142.go.tmp main.go && gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.36.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.37.exe .
 rm -f main.go
 ```
 
 - `-ldflags`에 **`-s -w` 넣지 말 것** (백신 오탐 원인).
 - **빌드해서 전달할 때마다 버전을 올린다.** 소스 2개 HTML의 `v1.4.X` 문자열
-  (각 파일 674번째 줄)과 이 문서·`HANDOFF.md`의 버전도 함께 바꾼다.
+  (각 파일 678번째 줄)과 이 문서·`HANDOFF.md`의 버전도 함께 바꾼다.
 - `go vet`는 로컬(리눅스)에서 `syscall.NewLazyDLL`, `buildHTML`의 Sprintf(`%`)를
   오탐한다 — 둘 다 예전부터 있던 노이즈. `GOOS=windows` 빌드가 통과하면 정상.
 
@@ -54,22 +54,22 @@ rm -f main.go
 확인은 `diff main_jc01_v142.go.tmp main_jc02_v142.go.tmp` 한 줄이면 된다 —
 두 파일을 각각 Read 하지 말 것.
 
-다른 곳 (JC01 → JC02 기준 라인번호, v1.4.36 시점):
+다른 곳 (JC01 → JC02 기준 라인번호, v1.4.37 시점):
 | 줄 | JC01 | JC02 |
 |----|------|------|
 | 306 | 주석 "JC01은 100000번대" | "JC02는 200000번대" |
 | 309 | `max := 100000` | `max := 200000` |
 | 311 | `r.ID < 200000` | `r.ID < 300000` |
-| 328 | `const myDong = "JC01"` | `= "JC02"` (Go 쓰기권한 동) |
-| 467 | `...\1동\Pending Item&지속관리` | `...\CELL_MEE_..\P10 Cell Sorter` (파츠폴더) |
-| 478 | `"JC_1 Sorter 필요 Parts"` | `"JC_2 Sorter 필요 Parts2"` (파츠파일명) |
-| 674 | `[JC01]` (제목) | `[JC02]` |
-| 687-688 | `JC01 selected` | `JC02 selected` |
-| 741 | `<option value="JC02">` | `<option value="JC02" selected>` |
-| 805 | `const MY_DONG='JC01'` | `='JC02'` (JS 쓰기권한 동) |
-| 813 | `memoSave('hk_memo',…)` | `memoSave('hk_memo_jc02',…)` |
-| 819 | `memoLoad('hk_memo')` | `memoLoad('hk_memo_jc02')` |
-| 969 | `fD.value='JC01'` | `='JC02'` |
+| 329 | `const myDong = "JC01"` | `= "JC02"` (Go 쓰기권한 동) |
+| 469 | `...\1동\Pending Item&지속관리` | `...\CELL_MEE_..\P10 Cell Sorter` (파츠폴더) |
+| 480 | `"JC_1 Sorter 필요 Parts"` | `"JC_2 Sorter 필요 Parts2"` (파츠파일명) |
+| 678 | `[JC01]` (제목) | `[JC02]` |
+| 691-692 | `JC01 selected` | `JC02 selected` |
+| 745 | `<option value="JC02">` | `<option value="JC02" selected>` |
+| 815 | `const MY_DONG='JC01'` | `='JC02'` (JS 쓰기권한 동) |
+| 823 | `memoSave('hk_memo',…)` | `memoSave('hk_memo_jc02',…)` |
+| 829 | `memoLoad('hk_memo')` | `memoLoad('hk_memo_jc02')` |
+| 979 | `fD.value='JC01'` | `='JC02'` |
 
 > 참고: PM 체크리스트 저장 키는 `'hk_pm_'+MY_DONG`으로 **양쪽 파일 동일**(변수라 diff 아님).
 
@@ -77,9 +77,12 @@ rm -f main.go
 
 ```go
 type Record struct {
-    ID int; Date, Equip, Worker, Category, Content, Dong string; Flag bool
-}  // json: id/date/equip/worker/content/category/dong/flag(omitempty)
+    ID int; Date, Equip, Worker, Shift, Category, Content, Dong string; Flag bool
+}  // json: id/date/equip/worker/shift(omitempty)/content/category/dong/flag(omitempty)
 ```
+- **Shift(근무조, v1.4.37)**: `"주"`/`"야"`/빈 문자열. 새 항목 모달의 구분 밑
+  칸(`#fs`)에서 선택. `omitempty`라 옛 레코드엔 없어도 하위호환. 메인 목록에서
+  근무자 칸 이름 위에 한 줄로 표시(`workerCell(w,shift)`의 `.wk-shift`).
 - `ID`는 **정수** (문자열로 절대 바꾸지 말 것 — WebView2 바인딩 의존).
 - **정렬(메인 목록, v1.4.36)**: `flag`(최상단) → 날짜 내림 → **구분 우선순위**
   (`CAT_ORDER`: 전달사항>Classification>기자재관리>설비이슈, 그 외인 감소활동은
@@ -101,17 +104,17 @@ type Record struct {
 | 줄 | 함수 |
 |----|------|
 | 20 | `//go:embed` + `initialDataJSON` |
-| 43 `recMu`(뮤텍스) · 48 `saveSignal`(chan) | records 보호 / 저장 신호 |
-| 50 `getDataDir` · 61 `getNetworkDir` | 경로 |
-| 68 `readWithTimeout` · 98 `writeWithTimeout` | 타임아웃 IO |
-| 154 `migrateEquipNames` · 170 `migrateIDOffsets` | 마이그레이션 |
-| 189 `loadRecords` · 233 `saveRecords` | 데이터 로직 |
-| 243 `requestSave` · 253 `startFlusher` · 268 `flushOnce` | 백그라운드 저장(내 동=메모리·상대 동=네트워크 병합) |
-| 308 `nextID(rs)` · 328 `myDong`(상수) | 채번 / 쓰기권한 동 |
-| 330 `handleBind` | WebView2 바인딩 (dbGetAll/dbAdd/dbUpdate/dbDelete/dbSetFlag→requestSave, memoSave/memoLoad). 소유권은 lock 안 루프에서 검사 |
-| 466 `openPartsFileImpl` · 498 `maximizeWindow` | |
-| 504 `main` | loadRecords→startFlusher→WebView2. 종료 시 flushOnce로 마지막 저장 |
-| 546 `buildHTML` | UI 전체 (HTML+CSS+JS, ~600줄) |
+| 44 `recMu`(뮤텍스) · 49 `saveSignal`(chan) | records 보호 / 저장 신호 |
+| 51 `getDataDir` · 62 `getNetworkDir` | 경로 |
+| 69 `readWithTimeout` · 99 `writeWithTimeout` | 타임아웃 IO |
+| 155 `migrateEquipNames` · 171 `migrateIDOffsets` | 마이그레이션 |
+| 190 `loadRecords` · 234 `saveRecords` | 데이터 로직 |
+| 244 `requestSave` · 254 `startFlusher` · 269 `flushOnce` | 백그라운드 저장(내 동=메모리·상대 동=네트워크 병합) |
+| 309 `nextID(rs)` · 329 `myDong`(상수) | 채번 / 쓰기권한 동 |
+| 331 `handleBind` | WebView2 바인딩 (dbGetAll/dbAdd/dbUpdate/dbDelete/dbSetFlag→requestSave, memoSave/memoLoad). 소유권은 lock 안 루프에서 검사. dbAdd/dbUpdate 시그니처에 `shift` 인자 포함(v1.4.37) |
+| 469 `openPartsFileImpl` · 501 `maximizeWindow` | |
+| 507 `main` | loadRecords→startFlusher→WebView2. 종료 시 flushOnce로 마지막 저장 |
+| 549 `buildHTML` | UI 전체 (HTML+CSS+JS, ~600줄) |
 
 ## 🚫 회귀 방지 (HANDOFF의 과거 사건 요약 — 상세는 HANDOFF.md)
 
@@ -166,7 +169,7 @@ type Record struct {
   추가·변경 시 **3곳을 모두** 고쳐야 함: ① 메인 필터 `<select id="fC">` ② 새항목 모달
   `<select id="fc">` ③ 배지 색 CSS `.c<이름>`(이름에 공백 없이). 하나만 빠지면 필터/입력/
   색 중 하나가 어긋난다.
-- **설비별 PM 체크리스트 (v1.4.32, 상시 표시 표)** — 메인 목록과 달력 **사이**의
+- **설비별 PM 체크리스트 (v1.4.31, 상시 표시 표)** — 메인 목록과 달력 **사이**의
   독립 칼럼 `.pm-col`. 4칸 그리드(`.pm-grid`: 설비|내용|설비|내용)로, 이 동의 필터
   설비(`EQUIP_BY_DONG[MY_DONG]`)를 2개씩 배치(왼쪽 절반=좌측 쌍, 오른쪽 절반=우측
   쌍). 내용칸은 `contenteditable` div(`.pm-cell.pm-text`), 입력마다 `savePmCell`이
@@ -174,12 +177,18 @@ type Record struct {
   키 `'hk_pm_'+MY_DONG`(동별 파일), 값 `{설비:내용}` JSON(`pmData`). `renderPmTable`이
   시작 시 표를 그린다(그 뒤엔 셀 편집만, 재렌더 없음 → 포커스 유지). `localStorage`로
   되돌리지 말 것(메모와 동일 — opaque origin 유실). v1.4.30의 드롭다운 방식은 폐기.
-- **근무자 셀 여러 줄 (v1.4.33)** — `rowHTML`의 근무자 칸은 `workerCell(r.worker)`로
+- **근무자 셀 여러 줄 (v1.4.33)** — `rowHTML`의 근무자 칸은 `workerCell(r.worker,r.shift)`로
   렌더. 쉼표로 구분된 근무자를 `<br>`로 나눠 여러 줄로 보이고, 가장 긴 이름
   글자수에 따라 폰트를 12→8px로 줄여 근무자 칸(`.fc-w`)에 맞춘다. `<br>`가 flex에서
-  안 먹으므로 내부 블록 `.wk` div로 감쌈. 헤더의 "근무자"는 그대로.
+  안 먹으므로 내부 블록 `.wk` div로 감쌈. 헤더의 "근무자"는 그대로. (v1.4.37에서
+  `shift` 인자 추가 — 아래 근무조 항목 참고.)
 - **메인 목록 칸 폭 축소 (v1.4.35)** — 동/날짜/설비/근무자 칸 폭과 가로 패딩을 글자
   크기에 맞게 줄임: `.fc-dong`44/`.fc-d`58/`.fc-e`56/`.fc-w`68px(+패딩 3~4px). 설비는
   최장값 `ATW#61`(JC01)이 기준이라 더 못 줄임(`.eb` 패딩도 7→5). 남는 폭은 내용
   칸(`.fc-ct`, flex:1)이 가져감. 더 줄이면 실기에서 글자 잘릴 수 있으니 주의.
+- **근무조(Shift) 필드 (v1.4.37)** — `dbAdd`/`dbUpdate` 바인딩 시그니처가
+  `(date,equip,worker,shift,category,content,dong)`로 **worker와 category 사이에
+  shift가 추가**됐다. JS `save()`의 인자 순서와 반드시 맞춰야 함(순서 바뀌면
+  값이 엉뚱한 필드로 들어감). 모달의 `#fs` select(값 "주"/"야"/""), 목록에서는
+  `workerCell(w,shift)`가 근무자 이름 위에 한 줄로 표시(`.wk-shift`).
 - 헤드리스/유닛테스트 통과 ≠ Windows 실기 정상. 큰 변경은 실기 확인 필요.

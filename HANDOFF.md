@@ -1,6 +1,6 @@
 # 인수인계 관리 프로그램 - 작업 인수인계 문서
 
-## 현재 버전: v1.4.36
+## 현재 버전: v1.4.37
 
 Go + WebView2 기반 Windows 데스크톱 앱. JC01(1동)/JC02(2동) 두 변형이 거의 동일한
 소스 구조를 공유하며, 각각 별도의 .exe로 빌드됨.
@@ -38,13 +38,13 @@ cd goapp
 cp main_jc01_v142.go.tmp main.go
 gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.36.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.37.exe .
 
 # JC02
 cp main_jc02_v142.go.tmp main.go
 gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC02_v1.4.36.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC02_v1.4.37.exe .
 ```
 
 **주의**: `-ldflags`에 `-s -w`를 넣지 마세요. 심볼 제거(압축)가 백신 오탐의
@@ -118,6 +118,7 @@ type Record struct {
     Date     string `json:"date"`
     Equip    string `json:"equip"`
     Worker   string `json:"worker"`
+    Shift    string `json:"shift,omitempty"`
     Category string `json:"category"`
     Content  string `json:"content"`
     Dong     string `json:"dong"`
@@ -235,7 +236,7 @@ JC01/JC02가 같은 `records.json`을 공유하면서 상대 동 데이터를 �
 - `applyFilter`: `if(selDate&&r.date!==selDate)return false`로 그 날짜만 남긴다.
   기존 검색어/구분/동/설비 필터와 **AND**로 함께 걸린다.
 - 활성 날짜 필터는 `cntbar`에 파란 칩(📅 날짜 ✕)으로 표시하고, ✕(`clearDateFilter`)
-  또는 달력에서 같은 날 재클릭으로 해제. 달력의 `.sd`(노란 배경, v1.4.36) 하이라이트가
+  또는 달력에서 같은 날 재클릭으로 해제. 달력의 `.sd`(노란 배경, v1.4.35) 하이라이트가
   현재 필터 날짜를 가리킨다.
 - `rowClick`은 이제 행 선택 하이라이트만 한다(예전엔 상세 패널 띄우고 달력 이동).
 - `save()` 후엔 `selDate=null`로 날짜 필터를 풀어 방금 추가/수정한 항목이 목록에
@@ -274,6 +275,25 @@ JS `renderDetail`. **상세 패널을 되살리지 말 것** — 날짜 열람�
 - 날짜: 오늘
 - 근무자/구분: **ID가 가장 큰(가장 최근 추가된) 레코드**의 값을 따라감
   (날짜 필드 기준이 아님 — 날짜는 사용자가 소급 입력할 수 있어서 신뢰 불가)
+- 근무조(Shift): 기본값 없음(빈 선택). lastRecord를 따라가지 않음 — 근무조는
+  날짜/작성자마다 바뀌는 값이라 이전 값을 이어받으면 오히려 실수로 잘못된 값이
+  들어갈 위험이 있다고 판단(v1.4.37).
+
+### 근무조(Shift) 필드 (v1.4.37)
+근무자가 주간/야간 중 언제 일했는지 표시하는 필드. 요청: "근무자 밑에 shift
+항목을 추가, 주/야 2개 중 선택, 목록에는 이름 위에 표시".
+- **데이터**: `Record.Shift` (`json:"shift,omitempty"`) — 값은 `"주"`/`"야"`/빈 문자열.
+  `omitempty`라 기존 레코드(필드 없음)는 하위호환.
+- **입력**: 새 항목 모달의 구분(`#fc`) 바로 아래 칸(원래 빈 `<div></div>` 자리)에
+  `<select id="fs">` 추가, 옵션은 "선택"(빈 값)/"주"/"야". 필수 입력 아님.
+- **저장**: `dbAdd`/`dbUpdate` Go 바인딩 시그니처가
+  `(date,equip,worker,shift,category,content,dong)`으로 바뀌어 **worker와
+  category 사이에 shift 인자가 추가**됐다. JS `save()`의 호출 인자 순서도 반드시
+  같이 맞춰야 한다(하나만 바뀌면 값이 엉뚱한 필드로 들어감 — 두 파일 다 동일하게
+  바꿨는지 diff로 꼭 확인).
+- **표시**: 메인 목록 근무자 칸(`workerCell(w,shift)`)에서 근무자 이름 **위에**
+  한 줄 더 붙인다(`.wk-shift`, 파란 글자 굵게). shift가 없는 옛 레코드는 그
+  줄이 아예 안 나온다(빈 문자열이면 렌더 안 함).
 
 ### 메모장 (v1.4.4)
 - 테이블과 달력 사이에 위치, 서버 저장 아님(PC별 개인 메모).
@@ -292,10 +312,10 @@ JS `renderDetail`. **상세 패널을 되살리지 말 것** — 날짜 열람�
   **다시 `localStorage`로 되돌리지 말 것 — 유실 재발.** (`DataPath` 고정 자체는
   WebView2 캐시 등을 우리 폴더에 모으는 용도로 그대로 유지.)
 
-### 설비별 PM 체크리스트 (v1.4.30 도입, v1.4.36 상시 표 방식으로 변경)
+### 설비별 PM 체크리스트 (v1.4.30 도입, v1.4.31 상시 표 방식으로 변경)
 설비마다 PM(예방정비) 시 할 일을 적어두는 표. 메모처럼 **로컬 파일 저장**이라 껐다
 켜도 유지된다.
-- **위치/형태 (v1.4.36)**: 메인 목록(`.left`)과 달력(`.right`) **사이**의 독립 칼럼
+- **위치/형태 (v1.4.31)**: 메인 목록(`.left`)과 달력(`.right`) **사이**의 독립 칼럼
   `.pm-col`. 이미지(인계 표)처럼 **4칸 그리드**(`.pm-grid`: 설비|내용|설비|내용)로
   설비를 2개씩 한 줄에 배치한다. 설비 목록은 이 동의 필터 설비
   (`EQUIP_BY_DONG[MY_DONG]`, '공통' 포함)를 반으로 나눠 **왼쪽 절반=좌측 쌍,

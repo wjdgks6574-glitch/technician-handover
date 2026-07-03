@@ -595,6 +595,8 @@ select{padding:6px 8px;border:1px solid #cbd5e0;border-radius:6px;font-size:12px
 .flagbtn:hover{background:#edf2f7}
 .flagbtn.on{color:#e53e3e}
 .flagbtn.dim{color:#e2e8f0;cursor:default}
+.frow.shift-day{background:#fef9c3}
+.frow.shift-night{background:#dbeafe}
 .frow.foreign{background:#fafbfc}
 .frow.flagged{box-shadow:inset 3px 0 0 #e53e3e}
 .fc-dong{flex:0 0 44px;width:44px;padding-left:3px;padding-right:3px}
@@ -675,7 +677,7 @@ mark{background:#fef08a;border-radius:2px}
 </head>
 <body>
 <div class="topbar">
-  <h1>📋 인수인계 관리 [JC01]</h1><span style="font-size:10px;color:#64b5f6;background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:4px;font-weight:400;letter-spacing:0.5px">v1.4.37</span>
+  <h1>📋 인수인계 관리 [JC01]</h1><span style="font-size:10px;color:#64b5f6;background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:4px;font-weight:400;letter-spacing:0.5px">v1.4.38</span>
   <span class="badge" id="tbadge">0건</span>
   <span id="netbadge" onclick="showNetInfo()" style="font-size:11px;padding:2px 8px;border-radius:99px;cursor:pointer;color:#f87171" title="확인 중...">●</span>
   <div class="spacer"></div>
@@ -1087,7 +1089,9 @@ function rowHTML(r){
   const flagBtn = mine
     ? '<button class="flagbtn'+(r.flag?' on':'')+'" onclick="toggleFlag(event,'+r.id+')" title="최상단 고정">⚑</button>'
     : '<span class="flagbtn dim" title="다른 동 항목은 변경할 수 없습니다">⚑</span>';
-  return '<div class="frow'+(r.flag?' flagged':'')+(mine?'':' foreign')+'" id="R'+r.id+'" onclick="rowClick('+r.id+')" oncontextmenu="rowCtx(event,'+r.id+')">'
+  // 근무조(주/야)에 따라 행 전체 배경색을 옅게 칠해 한눈에 구분되게 한다.
+  const shiftCls = r.shift==='주'?' shift-day':(r.shift==='야'?' shift-night':'');
+  return '<div class="frow'+(r.flag?' flagged':'')+(mine?'':' foreign')+shiftCls+'" id="R'+r.id+'" onclick="rowClick('+r.id+')" oncontextmenu="rowCtx(event,'+r.id+')">'
     +'<div class="fc fc-flag">'+flagBtn+'</div>'
     +'<div class="fc fc-dong"><span class="dong-badge">'+(r.dong||'JC01')+'</span></div>'
     +'<div class="fc fc-d">'+fmtDate(r.date)+'</div>'

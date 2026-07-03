@@ -29,7 +29,7 @@ goapp/main_jc02_v142.go.tmp    JC02 소스 (정본)
 
 ## 🔨 빌드 & 버전
 
-현재 버전: **v1.4.37**
+현재 버전: **v1.4.38**
 
 ```bash
 export GOPATH=$HOME/go && export PATH=$PATH:/usr/local/go/bin
@@ -37,13 +37,13 @@ cd goapp
 # JC01 (JC02는 파일명만 jc02로)
 cp main_jc01_v142.go.tmp main.go && gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.37.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.38.exe .
 rm -f main.go
 ```
 
 - `-ldflags`에 **`-s -w` 넣지 말 것** (백신 오탐 원인).
 - **빌드해서 전달할 때마다 버전을 올린다.** 소스 2개 HTML의 `v1.4.X` 문자열
-  (각 파일 678번째 줄)과 이 문서·`HANDOFF.md`의 버전도 함께 바꾼다.
+  (각 파일 680번째 줄)과 이 문서·`HANDOFF.md`의 버전도 함께 바꾼다.
 - `go vet`는 로컬(리눅스)에서 `syscall.NewLazyDLL`, `buildHTML`의 Sprintf(`%`)를
   오탐한다 — 둘 다 예전부터 있던 노이즈. `GOOS=windows` 빌드가 통과하면 정상.
 
@@ -54,7 +54,7 @@ rm -f main.go
 확인은 `diff main_jc01_v142.go.tmp main_jc02_v142.go.tmp` 한 줄이면 된다 —
 두 파일을 각각 Read 하지 말 것.
 
-다른 곳 (JC01 → JC02 기준 라인번호, v1.4.37 시점):
+다른 곳 (JC01 → JC02 기준 라인번호, v1.4.38 시점):
 | 줄 | JC01 | JC02 |
 |----|------|------|
 | 306 | 주석 "JC01은 100000번대" | "JC02는 200000번대" |
@@ -63,13 +63,13 @@ rm -f main.go
 | 329 | `const myDong = "JC01"` | `= "JC02"` (Go 쓰기권한 동) |
 | 469 | `...\1동\Pending Item&지속관리` | `...\CELL_MEE_..\P10 Cell Sorter` (파츠폴더) |
 | 480 | `"JC_1 Sorter 필요 Parts"` | `"JC_2 Sorter 필요 Parts2"` (파츠파일명) |
-| 678 | `[JC01]` (제목) | `[JC02]` |
-| 691-692 | `JC01 selected` | `JC02 selected` |
-| 745 | `<option value="JC02">` | `<option value="JC02" selected>` |
-| 815 | `const MY_DONG='JC01'` | `='JC02'` (JS 쓰기권한 동) |
-| 823 | `memoSave('hk_memo',…)` | `memoSave('hk_memo_jc02',…)` |
-| 829 | `memoLoad('hk_memo')` | `memoLoad('hk_memo_jc02')` |
-| 979 | `fD.value='JC01'` | `='JC02'` |
+| 680 | `[JC01]` (제목) | `[JC02]` |
+| 693-694 | `JC01 selected` | `JC02 selected` |
+| 747 | `<option value="JC02">` | `<option value="JC02" selected>` |
+| 817 | `const MY_DONG='JC01'` | `='JC02'` (JS 쓰기권한 동) |
+| 825 | `memoSave('hk_memo',…)` | `memoSave('hk_memo_jc02',…)` |
+| 831 | `memoLoad('hk_memo')` | `memoLoad('hk_memo_jc02')` |
+| 981 | `fD.value='JC01'` | `='JC02'` |
 
 > 참고: PM 체크리스트 저장 키는 `'hk_pm_'+MY_DONG`으로 **양쪽 파일 동일**(변수라 diff 아님).
 
@@ -191,4 +191,10 @@ type Record struct {
   shift가 추가**됐다. JS `save()`의 인자 순서와 반드시 맞춰야 함(순서 바뀌면
   값이 엉뚱한 필드로 들어감). 모달의 `#fs` select(값 "주"/"야"/""), 목록에서는
   `workerCell(w,shift)`가 근무자 이름 위에 한 줄로 표시(`.wk-shift`).
+- **근무조별 행 배경색 (v1.4.38)** — `rowHTML`이 `r.shift`에 따라 행에
+  `shift-day`(주, 옅은 노랑 `#fef9c3`) 또는 `shift-night`(야, 옅은 하늘색 `#dbeafe`)
+  클래스를 붙인다. CSS 선언 순서가 `.sel`→`shift-*`→`.foreign` 순이라, **상대 동
+  회색(`.foreign`)이 근무조 색보다 항상 우선**한다(동 구분이 더 중요). 반대로
+  근무조 색은 hover/선택(`.sel`) 파랑보다 우선 표시된다. 색을 더 진하게/다르게
+  바꿀 땐 이 우선순위(선언 순서)를 유지할 것.
 - 헤드리스/유닛테스트 통과 ≠ Windows 실기 정상. 큰 변경은 실기 확인 필요.

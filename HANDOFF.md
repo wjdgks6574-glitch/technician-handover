@@ -1,6 +1,6 @@
 # 인수인계 관리 프로그램 - 작업 인수인계 문서
 
-## 현재 버전: v1.4.37
+## 현재 버전: v1.4.38
 
 Go + WebView2 기반 Windows 데스크톱 앱. JC01(1동)/JC02(2동) 두 변형이 거의 동일한
 소스 구조를 공유하며, 각각 별도의 .exe로 빌드됨.
@@ -38,13 +38,13 @@ cd goapp
 cp main_jc01_v142.go.tmp main.go
 gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.37.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.38.exe .
 
 # JC02
 cp main_jc02_v142.go.tmp main.go
 gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC02_v1.4.37.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC02_v1.4.38.exe .
 ```
 
 **주의**: `-ldflags`에 `-s -w`를 넣지 마세요. 심볼 제거(압축)가 백신 오탐의
@@ -294,6 +294,21 @@ JS `renderDetail`. **상세 패널을 되살리지 말 것** — 날짜 열람�
 - **표시**: 메인 목록 근무자 칸(`workerCell(w,shift)`)에서 근무자 이름 **위에**
   한 줄 더 붙인다(`.wk-shift`, 파란 글자 굵게). shift가 없는 옛 레코드는 그
   줄이 아예 안 나온다(빈 문자열이면 렌더 안 함).
+
+**행 전체 배경색으로 확장 (v1.4.38)** — 이름 위 글자만으로는 눈에 잘 안 띈다는
+피드백으로, 행 전체 배경색도 근무조에 따라 옅게 칠하게 했다.
+- `rowHTML`이 `r.shift`값에 따라 행 클래스에 `shift-day`(주) 또는
+  `shift-night`(야)를 추가. CSS: `.frow.shift-day{background:#fef9c3}`(옅은 노랑),
+  `.frow.shift-night{background:#dbeafe}`(옅은 하늘색).
+- **우선순위(CSS 선언 순서)**: `.sel`(선택, 파랑) → `shift-day`/`shift-night` →
+  `.foreign`(상대 동, 회색) 순으로 선언했다. 그 결과:
+  - 근무조 색이 마우스 hover/행 선택(`.sel`)의 파란 배경보다 **우선**해서 보인다.
+  - 상대 동(`.foreign`, 읽기 전용 표시)의 회색이 근무조 색보다 **우선**한다 —
+    동 구분(v1.4.22 쓰기권한 제한과 연결된 표시)이 더 중요한 정보라 판단해서
+    그대로 남겨뒀다. 상대 동 + 근무조가 같이 있으면 회색만 보이고 근무조 색은
+    안 보인다(의도된 동작).
+- 색을 더 진하게 하거나 다른 색으로 바꿀 때도 이 선언 순서(사이에 끼워넣는
+  위치)를 유지할 것 — 순서가 바뀌면 위 우선순위가 깨진다.
 
 ### 메모장 (v1.4.4)
 - 테이블과 달력 사이에 위치, 서버 저장 아님(PC별 개인 메모).

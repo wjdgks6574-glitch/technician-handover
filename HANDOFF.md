@@ -1,6 +1,6 @@
 # 인수인계 관리 프로그램 - 작업 인수인계 문서
 
-## 현재 버전: v1.4.35
+## 현재 버전: v1.4.36
 
 Go + WebView2 기반 Windows 데스크톱 앱. JC01(1동)/JC02(2동) 두 변형이 거의 동일한
 소스 구조를 공유하며, 각각 별도의 .exe로 빌드됨.
@@ -38,13 +38,13 @@ cd goapp
 cp main_jc01_v142.go.tmp main.go
 gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.35.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.36.exe .
 
 # JC02
 cp main_jc02_v142.go.tmp main.go
 gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC02_v1.4.35.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC02_v1.4.36.exe .
 ```
 
 **주의**: `-ldflags`에 `-s -w`를 넣지 마세요. 심볼 제거(압축)가 백신 오탐의
@@ -191,9 +191,19 @@ ID 대역을 나눴습니다.
   빠져있던 걸 뒤늦게 발견한 적 있음 — `initial_data_v142.json`을 까보고
   실제 존재하는 `equip` 값과 드롭다운 목록을 비교하는 습관 들이세요).
 
-### 목록 정렬 & 플래그 (v1.4.21)
-- **메인 목록 정렬**: `flag`(켜진 것 최상단) → **날짜 내림차순** → **id 내림차순**.
-  (`applyFilter`의 `fil.sort`. CSV 내보내기는 날짜 내림→id 내림, flag 무관.)
+### 목록 정렬 & 플래그 (v1.4.21, v1.4.36에서 정렬 기준 확장)
+- **메인 목록 정렬**: `flag`(켜진 것 최상단) → **날짜 내림차순** → **구분 우선순위**
+  → **설비 호기 순서** → **id 내림차순**(안정성 타이브레이커). (`applyFilter`의
+  `fil.sort`. CSV 내보내기는 여전히 날짜 내림→id 내림만, flag·구분·설비 순서 무관 —
+  변경 안 함.)
+  - **구분 우선순위 (v1.4.36)**: `CAT_ORDER=['전달사항','Classification','기자재관리','설비이슈']`,
+    `catRank(c)`가 이 배열의 인덱스를 반환(없으면(예: 감소활동) 배열 길이 = 맨 뒤).
+    사용자가 요청한 "전달사항>클피(Classification)>기자재>설비이슈" 순서를 그대로 반영.
+    감소활동은 명시적으로 언급 안 해서 맨 뒤로 뒀다 — 순서를 바꾸고 싶으면
+    `CAT_ORDER`에 추가.
+  - **설비 호기 순서 (v1.4.36)**: `equipRank(r)`가 `EQUIP_BY_DONG[r.dong||'JC01']`
+    (레코드가 이 동에 없는 설비면 `EQUIP_BY_DONG['']`)에서의 인덱스를 반환. 새 배열을
+    또 안 만들고 이미 관리 중인 `EQUIP_BY_DONG`(공통→#1,#2..→ATW#61 순)을 재사용.
 - **플래그(⚑) 기능**: 행마다 ⚑ 버튼(`.fc-flag`/`.flagbtn`). 클릭하면 그 레코드가
   **최상단 고정**(빨강 표시 + 좌측 빨강 바 `.frow.flagged`). 상태는 `Record.Flag`로
   **DB에 공유 저장** — `dbSetFlag(id,flag)`가 메모리 갱신 후 백그라운드로 기록(같은 동 다른 PC와
@@ -217,7 +227,7 @@ JC01/JC02가 같은 `records.json`을 공유하면서 상대 동 데이터를 �
   회색(`#a0aec0`) 글자색도 줬으나 가독성이 떨어져 제거. 상대 동 표시는 배경색
   차이만으로 하고 글자는 흐리게 하지 말 것.
 
-### 달력 날짜 = 목록 필터로 변경, 상세 패널 제거 (v1.4.27)
+### 달력 날짜 = 목록 필터로 변경, 상세 패널 제거 (v1.4.27, v1.4.36에서 다중 선택으로 확장)
 예전엔 달력 밑에 상세 패널(`det-card`)이 있어서 날짜를 클릭하면 그 날짜의 기록을
 거기 카드로 보여줬다(`renderDetail`). 이걸 **없애고**, 달력 날짜 클릭을 **메인
 목록 필터**로 바꿨다.
@@ -225,13 +235,23 @@ JC01/JC02가 같은 `records.json`을 공유하면서 상대 동 데이터를 �
 - `applyFilter`: `if(selDate&&r.date!==selDate)return false`로 그 날짜만 남긴다.
   기존 검색어/구분/동/설비 필터와 **AND**로 함께 걸린다.
 - 활성 날짜 필터는 `cntbar`에 파란 칩(📅 날짜 ✕)으로 표시하고, ✕(`clearDateFilter`)
-  또는 달력에서 같은 날 재클릭으로 해제. 달력의 `.sd`(파란 배경) 하이라이트가 현재
-  필터 날짜를 가리킨다.
+  또는 달력에서 같은 날 재클릭으로 해제. 달력의 `.sd`(노란 배경, v1.4.36) 하이라이트가
+  현재 필터 날짜를 가리킨다.
 - `rowClick`은 이제 행 선택 하이라이트만 한다(예전엔 상세 패널 띄우고 달력 이동).
 - `save()` 후엔 `selDate=null`로 날짜 필터를 풀어 방금 추가/수정한 항목이 목록에
   바로 보이게 하고, 달력만 그 달로 이동시킨다.
 제거된 것: HTML `det-card` 블록, CSS `.det-card/.det-hdr/.det-body/.di/.di-h/.di-b/.es`,
 JS `renderDetail`. **상세 패널을 되살리지 말 것** — 날짜 열람은 목록 필터로 한다.
+
+**여러 날짜 동시 선택 (v1.4.36)** — 위 `selDate`(문자열 1개)를 `selDates`(Set)로
+바꿔 **여러 날짜를 동시에 선택**할 수 있게 했다. 이미 있는 `selectedEquips`
+(설비 다중선택) 패턴과 동일한 방식.
+- `selDate2(ds)`: `selDates.has(ds)`면 삭제, 아니면 추가(토글 누적).
+- `applyFilter`: `if(selDates.size>0 && !selDates.has(r.date))return false`.
+- `updateBadge`의 칩: 선택 날짜가 3개 이하면 다 나열, 많으면 "N일 선택"으로 축약
+  (툴팁에 전체 목록). ✕(`clearDateFilter`)는 `selDates.clear()`로 전체 해제.
+- `renderCal`: `.sd` 클래스는 `selDates.has(s)`로 판단(여러 날짜에 동시에 붙을 수 있음).
+- `save()`: 저장 후 `selDates.clear()`.
 
 ### 달력 요일/오늘 색상 (v1.4.26)
 `renderCal`에서 각 날짜의 `new Date(calY,calM-1,d).getDay()`로 요일을 계산해
@@ -272,10 +292,10 @@ JS `renderDetail`. **상세 패널을 되살리지 말 것** — 날짜 열람�
   **다시 `localStorage`로 되돌리지 말 것 — 유실 재발.** (`DataPath` 고정 자체는
   WebView2 캐시 등을 우리 폴더에 모으는 용도로 그대로 유지.)
 
-### 설비별 PM 체크리스트 (v1.4.30 도입, v1.4.35 상시 표 방식으로 변경)
+### 설비별 PM 체크리스트 (v1.4.30 도입, v1.4.36 상시 표 방식으로 변경)
 설비마다 PM(예방정비) 시 할 일을 적어두는 표. 메모처럼 **로컬 파일 저장**이라 껐다
 켜도 유지된다.
-- **위치/형태 (v1.4.35)**: 메인 목록(`.left`)과 달력(`.right`) **사이**의 독립 칼럼
+- **위치/형태 (v1.4.36)**: 메인 목록(`.left`)과 달력(`.right`) **사이**의 독립 칼럼
   `.pm-col`. 이미지(인계 표)처럼 **4칸 그리드**(`.pm-grid`: 설비|내용|설비|내용)로
   설비를 2개씩 한 줄에 배치한다. 설비 목록은 이 동의 필터 설비
   (`EQUIP_BY_DONG[MY_DONG]`, '공통' 포함)를 반으로 나눠 **왼쪽 절반=좌측 쌍,

@@ -29,7 +29,7 @@ goapp/main_jc02_v142.go.tmp    JC02 소스 (정본)
 
 ## 🔨 빌드 & 버전
 
-현재 버전: **v1.4.35**
+현재 버전: **v1.4.36**
 
 ```bash
 export GOPATH=$HOME/go && export PATH=$PATH:/usr/local/go/bin
@@ -37,7 +37,7 @@ cd goapp
 # JC01 (JC02는 파일명만 jc02로)
 cp main_jc01_v142.go.tmp main.go && gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.35.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.36.exe .
 rm -f main.go
 ```
 
@@ -54,7 +54,7 @@ rm -f main.go
 확인은 `diff main_jc01_v142.go.tmp main_jc02_v142.go.tmp` 한 줄이면 된다 —
 두 파일을 각각 Read 하지 말 것.
 
-다른 곳 (JC01 → JC02 기준 라인번호, v1.4.35 시점):
+다른 곳 (JC01 → JC02 기준 라인번호, v1.4.36 시점):
 | 줄 | JC01 | JC02 |
 |----|------|------|
 | 306 | 주석 "JC01은 100000번대" | "JC02는 200000번대" |
@@ -66,10 +66,10 @@ rm -f main.go
 | 674 | `[JC01]` (제목) | `[JC02]` |
 | 687-688 | `JC01 selected` | `JC02 selected` |
 | 741 | `<option value="JC02">` | `<option value="JC02" selected>` |
-| 794 | `const MY_DONG='JC01'` | `='JC02'` (JS 쓰기권한 동) |
-| 801 | `memoSave('hk_memo',…)` | `memoSave('hk_memo_jc02',…)` |
-| 807 | `memoLoad('hk_memo')` | `memoLoad('hk_memo_jc02')` |
-| 957 | `fD.value='JC01'` | `='JC02'` |
+| 805 | `const MY_DONG='JC01'` | `='JC02'` (JS 쓰기권한 동) |
+| 813 | `memoSave('hk_memo',…)` | `memoSave('hk_memo_jc02',…)` |
+| 819 | `memoLoad('hk_memo')` | `memoLoad('hk_memo_jc02')` |
+| 969 | `fD.value='JC01'` | `='JC02'` |
 
 > 참고: PM 체크리스트 저장 키는 `'hk_pm_'+MY_DONG`으로 **양쪽 파일 동일**(변수라 diff 아님).
 
@@ -81,7 +81,9 @@ type Record struct {
 }  // json: id/date/equip/worker/content/category/dong/flag(omitempty)
 ```
 - `ID`는 **정수** (문자열로 절대 바꾸지 말 것 — WebView2 바인딩 의존).
-- **정렬(메인 목록)**: `flag` 먼저(켜진 게 최상단) → 날짜 내림 → id 내림.
+- **정렬(메인 목록, v1.4.36)**: `flag`(최상단) → 날짜 내림 → **구분 우선순위**
+  (`CAT_ORDER`: 전달사항>Classification>기자재관리>설비이슈, 그 외인 감소활동은
+  맨 뒤) → **설비 호기 순서**(`EQUIP_BY_DONG` 나열 순) → id 내림(안정성 타이브레이커).
   `flag`는 행별 ⚑ 버튼으로 토글, `dbSetFlag(id,flag)`가 메모리 갱신 후
   백그라운드로 DB에 저장(공유).
 - **ID 대역 분리**: JC01 = `100000`번대(100001~199999), JC02 = `200000`번대.
@@ -149,11 +151,14 @@ type Record struct {
   선언해 우선순위 확보). **선택된 날짜(`.sd`)는 노란 배경(`#f6e05e`)+갈색 글자
   (`#744210`)로 오늘(파랑)과 구별(v1.4.35)** — `.sd`가 `.td2`보다 CSS에서 먼저
   선언돼 있어, 오늘 날짜를 선택하면 `.td2`가 이겨 파란색 유지(의도된 동작).
-- **날짜 필터 (v1.4.27)** — 달력 밑 상세 패널(`det-card`/`renderDetail`)을 없애고,
-  달력 날짜 클릭(`selDate2`)은 이제 메인 목록을 그 날짜만 보이게 하는 **필터**다.
-  `applyFilter`가 `selDate&&r.date!==selDate`로 거른다. 같은 날짜 재클릭=해제(토글),
-  `cntbar`의 파란 칩 ✕(`clearDateFilter`)로도 해제. `rowClick`은 이제 하이라이트만
-  (상세 패널 부활 금지). 저장(`save`) 후엔 `selDate=null`로 필터 풀어 새 항목이 보이게.
+- **날짜 필터 (v1.4.27, v1.4.36에서 다중 선택으로 확장)** — 달력 밑 상세 패널
+  (`det-card`/`renderDetail`)을 없애고, 달력 날짜 클릭(`selDate2`)은 메인 목록을
+  그 날짜(들)만 보이게 하는 **필터**다. 상태는 `selDates`(Set, 여러 날짜 누적 가능) —
+  클릭할 때마다 그 날짜만 토글(있으면 제거, 없으면 추가). `applyFilter`가
+  `selDates.size>0 && !selDates.has(r.date)`로 거른다. `cntbar`의 파란 칩(선택 3개
+  이하면 날짜 나열, 많으면 "N일 선택")의 ✕(`clearDateFilter`)로 전체 해제.
+  `rowClick`은 하이라이트만(상세 패널 부활 금지). 저장(`save`) 후엔 `selDates.clear()`로
+  필터 풀어 새 항목이 보이게.
 - **메모 위치 (v1.4.28)** — 메모 카드(`.memo-card`)는 예전엔 표와 달력 사이 별도
   칼럼이었으나, 이제 `.right`(달력) 칼럼 안 **달력 밑**으로 옮김. `.memo-card`는
   `flex:1`로 달력 아래 남은 높이를 채운다. 표(`.left`)가 그만큼 넓어짐.

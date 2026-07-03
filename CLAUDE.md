@@ -29,7 +29,7 @@ goapp/main_jc02_v142.go.tmp    JC02 소스 (정본)
 
 ## 🔨 빌드 & 버전
 
-현재 버전: **v1.4.23**
+현재 버전: **v1.4.24**
 
 ```bash
 export GOPATH=$HOME/go && export PATH=$PATH:/usr/local/go/bin
@@ -37,7 +37,7 @@ cd goapp
 # JC01 (JC02는 파일명만 jc02로)
 cp main_jc01_v142.go.tmp main.go && gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.23.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.24.exe .
 rm -f main.go
 ```
 
@@ -52,7 +52,7 @@ rm -f main.go
 확인은 `diff main_jc01_v142.go.tmp main_jc02_v142.go.tmp` 한 줄이면 된다 —
 두 파일을 각각 Read 하지 말 것.
 
-다른 곳 (JC01 → JC02 기준 라인번호, v1.4.23 시점):
+다른 곳 (JC01 → JC02 기준 라인번호, v1.4.24 시점):
 | 줄 | JC01 | JC02 |
 |----|------|------|
 | 252 | 주석 "JC01은 100000번대" | "JC02는 200000번대" |
@@ -124,4 +124,7 @@ type Record struct {
 - **상대 동 행 글자색 (v1.4.23)** — `.frow.foreign`은 배경만 살짝 회색(`#fafbfc`),
   글자색은 검은색 그대로 유지. 예전엔 내용 글자도 회색(`#a0aec0`)으로 흐리게
   했으나 가독성 이슈로 제거함. 다시 흐리게 만들지 말 것.
+- **내용 전체보기 X 버튼 (v1.4.24)** — `viewFull`의 닫기 버튼은 `this.closest('[style]')`로
+  찾지 말 것: 버튼 자신도 `style` 속성이 있어 자기 자신이 매칭되어 지워지고 창은
+  안 닫힌다. `.vfclose` 클래스로 찾아 `d.remove()`(오버레이 자체)를 호출해야 함.
 - 헤드리스/유닛테스트 통과 ≠ Windows 실기 정상. 큰 변경은 실기 확인 필요.

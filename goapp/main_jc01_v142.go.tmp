@@ -603,7 +603,7 @@ mark{background:#fef08a;border-radius:2px}
 </head>
 <body>
 <div class="topbar">
-  <h1>📋 인수인계 관리 [JC01]</h1><span style="font-size:10px;color:#64b5f6;background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:4px;font-weight:400;letter-spacing:0.5px">v1.4.23</span>
+  <h1>📋 인수인계 관리 [JC01]</h1><span style="font-size:10px;color:#64b5f6;background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:4px;font-weight:400;letter-spacing:0.5px">v1.4.24</span>
   <span class="badge" id="tbadge">0건</span>
   <span id="netbadge" onclick="showNetInfo()" style="font-size:11px;padding:2px 8px;border-radius:99px;cursor:pointer;color:#f87171" title="확인 중...">●</span>
   <div class="spacer"></div>
@@ -1138,10 +1138,11 @@ function viewFull(r){
     +'<span class="eb" style="background:'+bg+';color:'+fg+'">'+esc(r.equip)+'</span>'
     +'<span style="color:#718096;font-size:11px">'+esc(r.worker)+'</span>'
     +'<span style="color:#718096;font-size:11px;margin-left:auto">'+esc(r.date)+'</span>'
-    +'<button onclick="this.closest(\'[style]\').remove()" style="margin-left:8px;background:none;border:none;cursor:pointer;font-size:18px;color:#718096;line-height:1">✕</button>'
+    +'<button class="vfclose" style="margin-left:8px;background:none;border:none;cursor:pointer;font-size:18px;color:#718096;line-height:1">✕</button>'
     +'</div>'
     +'<div style="overflow-y:auto;white-space:pre-wrap;font-size:13px;line-height:1.8;color:#2d3748;flex:1">'+esc(r.content)+'</div>'
     +'</div>';
+  d.querySelector('.vfclose').onclick=()=>d.remove();
   d.onclick=e=>{if(e.target===d)d.remove();};
   document.body.appendChild(d);
 }

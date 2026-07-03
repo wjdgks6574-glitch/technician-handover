@@ -677,7 +677,7 @@ mark{background:#fef08a;border-radius:2px}
 </head>
 <body>
 <div class="topbar">
-  <h1>📋 인수인계 관리 [JC01]</h1><span style="font-size:10px;color:#64b5f6;background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:4px;font-weight:400;letter-spacing:0.5px">v1.4.38</span>
+  <h1>📋 인수인계 관리 [JC01]</h1><span style="font-size:10px;color:#64b5f6;background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:4px;font-weight:400;letter-spacing:0.5px">v1.4.39</span>
   <span class="badge" id="tbadge">0건</span>
   <span id="netbadge" onclick="showNetInfo()" style="font-size:11px;padding:2px 8px;border-radius:99px;cursor:pointer;color:#f87171" title="확인 중...">●</span>
   <div class="spacer"></div>
@@ -794,8 +794,10 @@ const EQUIP_BY_DONG={
   '':['공통','#1','#2','#3','#4','#5','#6','#7','#10','#21','#22','#31','#32','#41','#42','#51','#52','#60','#61','#71','#96','#99','ATW#61']
 };
 
-// 목록 정렬용 구분/설비 우선순위. 날짜(역순) 다음 타이브레이커로 쓴다:
-// 전달사항 > Classification > 기자재관리 > 설비이슈 > (그 외, 예: 감소활동).
+// 목록 정렬용 근무조/구분/설비 우선순위. 날짜(역순) 다음 타이브레이커로 쓴다:
+// 근무조(야>주>그 외) > 전달사항 > Classification > 기자재관리 > 설비이슈 > (그 외, 예: 감소활동).
+const SHIFT_ORDER=['야','주'];
+function shiftRank(s){ const i=SHIFT_ORDER.indexOf(s); return i===-1?SHIFT_ORDER.length:i; }
 const CAT_ORDER=['전달사항','Classification','기자재관리','설비이슈'];
 function catRank(c){ const i=CAT_ORDER.indexOf(c); return i===-1?CAT_ORDER.length:i; }
 // 설비 호기 순서: EQUIP_BY_DONG의 나열 순서를 그대로 쓴다(공통→#1,#2..→ATW#61).
@@ -1044,10 +1046,12 @@ function applyFilter(){
     if(q&&!(r.content+r.equip+r.worker+r.category+r.date+(r.dong||'')).toLowerCase().includes(q))return false;
     return true;
   });
-  // 정렬: 플래그(최상단) → 날짜 역순 → 구분 우선순위 → 설비 호기 순서 → id 역순(안정성).
+  // 정렬: 플래그(최상단) → 날짜 역순 → 근무조(야>주) → 구분 우선순위 → 설비 호기 순서 → id 역순(안정성).
   fil.sort((a,b)=>{
     if((b.flag?1:0)!==(a.flag?1:0)) return (b.flag?1:0)-(a.flag?1:0);
     if(b.date!==a.date) return b.date.localeCompare(a.date);
+    const sa=shiftRank(a.shift), sb=shiftRank(b.shift);
+    if(sa!==sb) return sa-sb;
     const ca=catRank(a.category), cb=catRank(b.category);
     if(ca!==cb) return ca-cb;
     const ea=equipRank(a), eb=equipRank(b);

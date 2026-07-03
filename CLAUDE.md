@@ -29,7 +29,7 @@ goapp/main_jc02_v142.go.tmp    JC02 소스 (정본)
 
 ## 🔨 빌드 & 버전
 
-현재 버전: **v1.4.38**
+현재 버전: **v1.4.39**
 
 ```bash
 export GOPATH=$HOME/go && export PATH=$PATH:/usr/local/go/bin
@@ -37,7 +37,7 @@ cd goapp
 # JC01 (JC02는 파일명만 jc02로)
 cp main_jc01_v142.go.tmp main.go && gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.38.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.39.exe .
 rm -f main.go
 ```
 
@@ -54,7 +54,7 @@ rm -f main.go
 확인은 `diff main_jc01_v142.go.tmp main_jc02_v142.go.tmp` 한 줄이면 된다 —
 두 파일을 각각 Read 하지 말 것.
 
-다른 곳 (JC01 → JC02 기준 라인번호, v1.4.38 시점):
+다른 곳 (JC01 → JC02 기준 라인번호, v1.4.39 시점):
 | 줄 | JC01 | JC02 |
 |----|------|------|
 | 306 | 주석 "JC01은 100000번대" | "JC02는 200000번대" |
@@ -66,10 +66,10 @@ rm -f main.go
 | 680 | `[JC01]` (제목) | `[JC02]` |
 | 693-694 | `JC01 selected` | `JC02 selected` |
 | 747 | `<option value="JC02">` | `<option value="JC02" selected>` |
-| 817 | `const MY_DONG='JC01'` | `='JC02'` (JS 쓰기권한 동) |
-| 825 | `memoSave('hk_memo',…)` | `memoSave('hk_memo_jc02',…)` |
-| 831 | `memoLoad('hk_memo')` | `memoLoad('hk_memo_jc02')` |
-| 981 | `fD.value='JC01'` | `='JC02'` |
+| 819 | `const MY_DONG='JC01'` | `='JC02'` (JS 쓰기권한 동) |
+| 827 | `memoSave('hk_memo',…)` | `memoSave('hk_memo_jc02',…)` |
+| 833 | `memoLoad('hk_memo')` | `memoLoad('hk_memo_jc02')` |
+| 983 | `fD.value='JC01'` | `='JC02'` |
 
 > 참고: PM 체크리스트 저장 키는 `'hk_pm_'+MY_DONG`으로 **양쪽 파일 동일**(변수라 diff 아님).
 
@@ -84,7 +84,8 @@ type Record struct {
   칸(`#fs`)에서 선택. `omitempty`라 옛 레코드엔 없어도 하위호환. 메인 목록에서
   근무자 칸 이름 위에 한 줄로 표시(`workerCell(w,shift)`의 `.wk-shift`).
 - `ID`는 **정수** (문자열로 절대 바꾸지 말 것 — WebView2 바인딩 의존).
-- **정렬(메인 목록, v1.4.36)**: `flag`(최상단) → 날짜 내림 → **구분 우선순위**
+- **정렬(메인 목록, v1.4.39 기준)**: `flag`(최상단) → 날짜 내림 → **근무조 우선순위**
+  (`SHIFT_ORDER`: 야>주, 빈 값은 맨 뒤) → **구분 우선순위**
   (`CAT_ORDER`: 전달사항>Classification>기자재관리>설비이슈, 그 외인 감소활동은
   맨 뒤) → **설비 호기 순서**(`EQUIP_BY_DONG` 나열 순) → id 내림(안정성 타이브레이커).
   `flag`는 행별 ⚑ 버튼으로 토글, `dbSetFlag(id,flag)`가 메모리 갱신 후
@@ -197,4 +198,7 @@ type Record struct {
   회색(`.foreign`)이 근무조 색보다 항상 우선**한다(동 구분이 더 중요). 반대로
   근무조 색은 hover/선택(`.sel`) 파랑보다 우선 표시된다. 색을 더 진하게/다르게
   바꿀 땐 이 우선순위(선언 순서)를 유지할 것.
-- 헤드리스/유닛테스트 통과 ≠ Windows 실기 정상. 큰 변경은 실기 확인 필요.
+- **정렬에 근무조 추가 (v1.4.39)** — `applyFilter`의 `fil.sort`에서 날짜 다음,
+  구분(`CAT_ORDER`) 이전에 근무조 타이브레이커를 넣음: `SHIFT_ORDER=['야','주']`,
+  `shiftRank(s)`가 인덱스 반환(빈 값/기타는 맨 뒤). **야간이 주간보다 먼저** 온다
+  (사용자 요청 순서 — 착각해서 반대로 바꾸지 말 것).

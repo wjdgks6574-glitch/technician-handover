@@ -1,6 +1,6 @@
 # 인수인계 관리 프로그램 - 작업 인수인계 문서
 
-## 현재 버전: v1.4.38
+## 현재 버전: v1.4.39
 
 Go + WebView2 기반 Windows 데스크톱 앱. JC01(1동)/JC02(2동) 두 변형이 거의 동일한
 소스 구조를 공유하며, 각각 별도의 .exe로 빌드됨.
@@ -38,13 +38,13 @@ cd goapp
 cp main_jc01_v142.go.tmp main.go
 gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.38.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.39.exe .
 
 # JC02
 cp main_jc02_v142.go.tmp main.go
 gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC02_v1.4.38.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC02_v1.4.39.exe .
 ```
 
 **주의**: `-ldflags`에 `-s -w`를 넣지 마세요. 심볼 제거(압축)가 백신 오탐의
@@ -192,11 +192,16 @@ ID 대역을 나눴습니다.
   빠져있던 걸 뒤늦게 발견한 적 있음 — `initial_data_v142.json`을 까보고
   실제 존재하는 `equip` 값과 드롭다운 목록을 비교하는 습관 들이세요).
 
-### 목록 정렬 & 플래그 (v1.4.21, v1.4.36에서 정렬 기준 확장)
-- **메인 목록 정렬**: `flag`(켜진 것 최상단) → **날짜 내림차순** → **구분 우선순위**
-  → **설비 호기 순서** → **id 내림차순**(안정성 타이브레이커). (`applyFilter`의
-  `fil.sort`. CSV 내보내기는 여전히 날짜 내림→id 내림만, flag·구분·설비 순서 무관 —
-  변경 안 함.)
+### 목록 정렬 & 플래그 (v1.4.21, v1.4.36/v1.4.39에서 정렬 기준 확장)
+- **메인 목록 정렬**: `flag`(켜진 것 최상단) → **날짜 내림차순** → **근무조 우선순위**
+  → **구분 우선순위** → **설비 호기 순서** → **id 내림차순**(안정성 타이브레이커).
+  (`applyFilter`의 `fil.sort`. CSV 내보내기는 여전히 날짜 내림→id 내림만,
+  flag·근무조·구분·설비 순서 무관 — 변경 안 함.)
+  - **근무조 우선순위 (v1.4.39)**: `SHIFT_ORDER=['야','주']`, `shiftRank(s)`가
+    이 배열의 인덱스를 반환(빈 값/기타는 배열 길이 = 맨 뒤). 날짜 다음, 구분보다
+    **먼저** 비교한다. 사용자가 명시적으로 "야 → 주" 순서를 요청했다(처음엔
+    "주>전달사항"이라 했다가 "야>주>전달사항"으로 정정) — **주간이 먼저라고
+    착각해서 배열 순서를 바꾸지 말 것.**
   - **구분 우선순위 (v1.4.36)**: `CAT_ORDER=['전달사항','Classification','기자재관리','설비이슈']`,
     `catRank(c)`가 이 배열의 인덱스를 반환(없으면(예: 감소활동) 배열 길이 = 맨 뒤).
     사용자가 요청한 "전달사항>클피(Classification)>기자재>설비이슈" 순서를 그대로 반영.

@@ -29,7 +29,7 @@ goapp/main_jc02_v142.go.tmp    JC02 소스 (정본)
 
 ## 🔨 빌드 & 버전
 
-현재 버전: **v1.4.34**
+현재 버전: **v1.4.35**
 
 ```bash
 export GOPATH=$HOME/go && export PATH=$PATH:/usr/local/go/bin
@@ -37,7 +37,7 @@ cd goapp
 # JC01 (JC02는 파일명만 jc02로)
 cp main_jc01_v142.go.tmp main.go && gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.34.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.35.exe .
 rm -f main.go
 ```
 
@@ -54,7 +54,7 @@ rm -f main.go
 확인은 `diff main_jc01_v142.go.tmp main_jc02_v142.go.tmp` 한 줄이면 된다 —
 두 파일을 각각 Read 하지 말 것.
 
-다른 곳 (JC01 → JC02 기준 라인번호, v1.4.34 시점):
+다른 곳 (JC01 → JC02 기준 라인번호, v1.4.35 시점):
 | 줄 | JC01 | JC02 |
 |----|------|------|
 | 306 | 주석 "JC01은 100000번대" | "JC02는 200000번대" |
@@ -146,7 +146,9 @@ type Record struct {
 - **달력 요일/오늘 색 (v1.4.26)** — `renderCal`에서 날짜별 `getDay()`로 토요일은
   `.sat`(파랑 글자), 일요일은 `.sun`(빨강 글자) 클래스를 붙인다. 오늘(`.td2`)은
   파란 배경+흰 글자로 요일색보다 우선(CSS에서 `.td2`를 `.sat`/`.sun`보다 뒤에
-  선언해 우선순위 확보). 선택된 날짜(`.sd`)도 동일한 파란 배경+흰 글자.
+  선언해 우선순위 확보). **선택된 날짜(`.sd`)는 노란 배경(`#f6e05e`)+갈색 글자
+  (`#744210`)로 오늘(파랑)과 구별(v1.4.35)** — `.sd`가 `.td2`보다 CSS에서 먼저
+  선언돼 있어, 오늘 날짜를 선택하면 `.td2`가 이겨 파란색 유지(의도된 동작).
 - **날짜 필터 (v1.4.27)** — 달력 밑 상세 패널(`det-card`/`renderDetail`)을 없애고,
   달력 날짜 클릭(`selDate2`)은 이제 메인 목록을 그 날짜만 보이게 하는 **필터**다.
   `applyFilter`가 `selDate&&r.date!==selDate`로 거른다. 같은 날짜 재클릭=해제(토글),
@@ -171,7 +173,7 @@ type Record struct {
   렌더. 쉼표로 구분된 근무자를 `<br>`로 나눠 여러 줄로 보이고, 가장 긴 이름
   글자수에 따라 폰트를 12→8px로 줄여 근무자 칸(`.fc-w`)에 맞춘다. `<br>`가 flex에서
   안 먹으므로 내부 블록 `.wk` div로 감쌈. 헤더의 "근무자"는 그대로.
-- **메인 목록 칸 폭 축소 (v1.4.34)** — 동/날짜/설비/근무자 칸 폭과 가로 패딩을 글자
+- **메인 목록 칸 폭 축소 (v1.4.35)** — 동/날짜/설비/근무자 칸 폭과 가로 패딩을 글자
   크기에 맞게 줄임: `.fc-dong`44/`.fc-d`58/`.fc-e`56/`.fc-w`68px(+패딩 3~4px). 설비는
   최장값 `ATW#61`(JC01)이 기준이라 더 못 줄임(`.eb` 패딩도 7→5). 남는 폭은 내용
   칸(`.fc-ct`, flex:1)이 가져감. 더 줄이면 실기에서 글자 잘릴 수 있으니 주의.

@@ -639,7 +639,7 @@ select{padding:6px 8px;border:1px solid #cbd5e0;border-radius:6px;font-size:12px
 .day.hd::after{content:'';position:absolute;bottom:1px;left:50%;transform:translateX(-50%);width:4px;height:4px;border-radius:50%;background:#3b82f6}
 .day.sat{color:#2563eb}
 .day.sun{color:#e53e3e}
-.day.sd{background:#3b82f6;color:#fff}.day.sd::after{background:#fff}
+.day.sd{background:#f6e05e;color:#744210}.day.sd::after{background:#744210}
 .day.td2{background:#3b82f6;color:#fff;font-weight:700}.day.td2::after{background:#fff}
 .day.em{cursor:default}.day.em:hover{background:none}
 .cal-hint{padding:6px 10px;font-size:10px;color:#a0aec0;text-align:center;border-top:1px solid #edf2f7}
@@ -671,7 +671,7 @@ mark{background:#fef08a;border-radius:2px}
 </head>
 <body>
 <div class="topbar">
-  <h1>📋 인수인계 관리 [JC02]</h1><span style="font-size:10px;color:#64b5f6;background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:4px;font-weight:400;letter-spacing:0.5px">v1.4.34</span>
+  <h1>📋 인수인계 관리 [JC02]</h1><span style="font-size:10px;color:#64b5f6;background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:4px;font-weight:400;letter-spacing:0.5px">v1.4.35</span>
   <span class="badge" id="tbadge">0건</span>
   <span id="netbadge" onclick="showNetInfo()" style="font-size:11px;padding:2px 8px;border-radius:99px;cursor:pointer;color:#f87171" title="확인 중...">●</span>
   <div class="spacer"></div>

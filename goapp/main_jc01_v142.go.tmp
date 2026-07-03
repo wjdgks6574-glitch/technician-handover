@@ -607,6 +607,7 @@ select{padding:6px 8px;border:1px solid #cbd5e0;border-radius:6px;font-size:12px
 .c전달사항{background:#fefcbf;color:#744210}
 .c기자재관리{background:#c6f6d5;color:#276749}
 .cClassification{background:#fed7aa;color:#7b341e}
+.c감소활동{background:#e9d8fd;color:#553c9a}
 .eb{display:inline-block;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:600}
 .right{display:flex;flex-direction:column;width:270px;flex-shrink:0;gap:8px}
 .memo-card{flex:1;min-height:120px;background:#fffaf0;border:1px solid #f6ad55;border-radius:10px;display:flex;flex-direction:column;overflow:hidden}
@@ -659,7 +660,7 @@ mark{background:#fef08a;border-radius:2px}
 </head>
 <body>
 <div class="topbar">
-  <h1>📋 인수인계 관리 [JC01]</h1><span style="font-size:10px;color:#64b5f6;background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:4px;font-weight:400;letter-spacing:0.5px">v1.4.28</span>
+  <h1>📋 인수인계 관리 [JC01]</h1><span style="font-size:10px;color:#64b5f6;background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:4px;font-weight:400;letter-spacing:0.5px">v1.4.29</span>
   <span class="badge" id="tbadge">0건</span>
   <span id="netbadge" onclick="showNetInfo()" style="font-size:11px;padding:2px 8px;border-radius:99px;cursor:pointer;color:#f87171" title="확인 중...">●</span>
   <div class="spacer"></div>
@@ -683,6 +684,7 @@ mark{background:#fef08a;border-radius:2px}
         <option value="">구분</option>
         <option>설비이슈</option><option>전달사항</option>
         <option>기자재관리</option><option>Classification</option>
+        <option>감소활동</option>
       </select>
       <button class="btn btn-parts" onclick="openPartsFile()">📋 파트 요청 리스트</button>
     </div>
@@ -736,6 +738,7 @@ mark{background:#fef08a;border-radius:2px}
           <option value="">선택</option>
           <option>설비이슈</option><option>전달사항</option>
           <option>기자재관리</option><option>Classification</option>
+          <option>감소활동</option>
         </select>
       </div>
       <div></div>

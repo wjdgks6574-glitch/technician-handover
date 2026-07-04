@@ -29,7 +29,7 @@ goapp/main_jc02_v142.go.tmp    JC02 소스 (정본)
 
 ## 🔨 빌드 & 버전
 
-현재 버전: **v1.4.47**
+현재 버전: **v1.4.48**
 
 ```bash
 export GOPATH=$HOME/go && export PATH=$PATH:/usr/local/go/bin
@@ -37,13 +37,13 @@ cd goapp
 # JC01 (JC02는 파일명만 jc02로)
 cp main_jc01_v142.go.tmp main.go && gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.47.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.48.exe .
 rm -f main.go
 ```
 
 - `-ldflags`에 **`-s -w` 넣지 말 것** (백신 오탐 원인).
 - **빌드해서 전달할 때마다 버전을 올린다.** 소스 2개 HTML의 `v1.4.X` 문자열
-  (각 파일 689번째 줄)과 이 문서·`HANDOFF.md`의 버전도 함께 바꾼다.
+  (각 파일 693번째 줄)과 이 문서·`HANDOFF.md`의 버전도 함께 바꾼다.
 - `go vet`는 로컬(리눅스)에서 `syscall.NewLazyDLL`, `buildHTML`의 Sprintf(`%`)를
   오탐한다 — 둘 다 예전부터 있던 노이즈. `GOOS=windows` 빌드가 통과하면 정상.
 
@@ -54,7 +54,7 @@ rm -f main.go
 확인은 `diff main_jc01_v142.go.tmp main_jc02_v142.go.tmp` 한 줄이면 된다 —
 두 파일을 각각 Read 하지 말 것.
 
-다른 곳 (JC01 → JC02 기준 라인번호, v1.4.47 시점):
+다른 곳 (JC01 → JC02 기준 라인번호, v1.4.48 시점):
 | 줄 | JC01 | JC02 |
 |----|------|------|
 | 307 | 주석 "JC01은 100000번대" | "JC02는 200000번대" |
@@ -63,13 +63,13 @@ rm -f main.go
 | 329 | `const myDong = "JC01"` | `= "JC02"` (Go 쓰기권한 동) |
 | 470 | `...\1동\Pending Item&지속관리` | `...\CELL_MEE_..\P10 Cell Sorter` (파츠폴더) |
 | 481 | `"JC_1 Sorter 필요 Parts"` | `"JC_2 Sorter 필요 Parts2"` (파츠파일명) |
-| 689 | `[JC01]` (제목) | `[JC02]` |
-| 702-703 | `JC01 selected` | `JC02 selected` |
-| 763 | `<option value="JC02">` | `<option value="JC02" selected>` |
-| 835 | `const MY_DONG='JC01'` | `='JC02'` (JS 쓰기권한 동) |
-| 844 | `memoSave('hk_memo',…)` | `memoSave('hk_memo_jc02',…)` |
-| 850 | `memoLoad('hk_memo')` | `memoLoad('hk_memo_jc02')` |
-| 1000 | `fD.value='JC01'` | `='JC02'` |
+| 693 | `[JC01]` (제목) | `[JC02]` |
+| 706-707 | `JC01 selected` | `JC02 selected` |
+| 767 | `<option value="JC02">` | `<option value="JC02" selected>` |
+| 839 | `const MY_DONG='JC01'` | `='JC02'` (JS 쓰기권한 동) |
+| 848 | `memoSave('hk_memo',…)` | `memoSave('hk_memo_jc02',…)` |
+| 854 | `memoLoad('hk_memo')` | `memoLoad('hk_memo_jc02')` |
+| 1004 | `fD.value='JC01'` | `='JC02'` |
 
 > 참고: PM 체크리스트 저장 키는 `'hk_pm_'+MY_DONG`으로 **양쪽 파일 동일**(변수라 diff 아님).
 
@@ -188,9 +188,18 @@ type Record struct {
   CSS/JS로 표시 형식을 못 바꾼다). `oninput="rangeType()"`이 숫자만 받아 2·4자리 뒤
   `/`를 자동 삽입, `rangeParse('26/06/24')`가 `2026-06-24`로 되돌려 **내부 상태
   (`rangeStart/End`)·비교는 그대로 `YYYY-MM-DD`** 유지(필터 로직 무변경). `rangeFmt`가
-  다시 `26/06/24`로 표시(입력칸·칩 모두). 개별 날짜 선택은 위 달력 그리드 클릭으로
-  하므로 텍스트 입력으로 바꿔도 날짜 선택 수단은 남아 있다. 다시 `type="date"`로
-  되돌리면 형식 요청이 깨지고 칸이 좁아 잘린다 — 되돌리지 말 것.
+  다시 `26/06/24`로 표시(입력칸·칩 모두). 다시 `type="date"`로 되돌리면 형식 요청이
+  깨지고 칸이 좁아 잘린다 — 되돌리지 말 것.
+  **달력 아이콘(클릭 선택) 복원 (v1.4.48)** — v1.4.46에서 네이티브 date를 없애며
+  달력 팝업 클릭 선택도 같이 사라졌다는 지적이 있어, 각 텍스트칸을 `<span class="rin">`
+  으로 감싸고 그 안에 **아이콘만 보이는 네이티브 `<input type="date" class="rpick">`**
+  를 나란히 뒀다(`#rsd`/`#red`). `.rpick`은 `::-webkit-datetime-edit`·스핀·클리어를
+  `display:none`으로 감추고 `::-webkit-calendar-picker-indicator`만 남겨(폭 18px) 달력
+  아이콘 버튼처럼 보인다. 아이콘 클릭→네이티브 달력 팝업→`onchange="rangePick('rs',값)"`
+  이 고른 `YYYY-MM-DD`를 `rangeFmt`로 `26/06/24`로 만들어 텍스트칸에 넣고 `applyRange`.
+  즉 **타이핑(26/06/24)과 달력 클릭 둘 다로 기간 설정 가능**. `applyRange`/`clearRange`가
+  `#rsd`/`#red`의 value도 동기화해 팝업이 현재 고른 날짜에서 열린다. `showPicker()`에
+  의존하지 않아(아이콘이 진짜 date input) WebView2에서 안전. `.rpick`을 지우지 말 것.
 - **메모 위치 (v1.4.28)** — 메모 카드(`.memo-card`)는 예전엔 표와 달력 사이 별도
   칼럼이었으나, 이제 `.right`(달력) 칼럼 안 **달력 밑**으로 옮김. `.memo-card`는
   `flex:1`로 달력 아래 남은 높이를 채운다. 표(`.left`)가 그만큼 넓어짐.

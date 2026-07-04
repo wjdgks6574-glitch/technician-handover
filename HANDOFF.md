@@ -1,6 +1,6 @@
 # 인수인계 관리 프로그램 - 작업 인수인계 문서
 
-## 현재 버전: v1.4.47
+## 현재 버전: v1.4.48
 
 Go + WebView2 기반 Windows 데스크톱 앱. JC01(1동)/JC02(2동) 두 변형이 거의 동일한
 소스 구조를 공유하며, 각각 별도의 .exe로 빌드됨.
@@ -38,13 +38,13 @@ cd goapp
 cp main_jc01_v142.go.tmp main.go
 gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.47.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.48.exe .
 
 # JC02
 cp main_jc02_v142.go.tmp main.go
 gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC02_v1.4.47.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC02_v1.4.48.exe .
 ```
 
 **주의**: `-ldflags`에 `-s -w`를 넣지 마세요. 심볼 제거(압축)가 백신 오탐의
@@ -288,7 +288,7 @@ JS `renderDetail`. **상세 패널을 되살리지 말 것** — 날짜 열람�
 - 검증: Playwright로 6/10~6/17 입력 시 목록 8건(6/10~6/17)·달력 10~17 초록 highlight를
   확인함. 기간 칩과 개별 날짜 칩은 동시에 표시될 수 있다(둘 다 활성 시).
 
-**입력칸을 YY/MM/DD 텍스트로 (v1.4.45→v1.4.46)** — v1.4.45에선 두 칸이
+**입력칸을 YY/MM/DD 텍스트로 (v1.4.45→v1.4.46, v1.4.48에서 달력 아이콘 병행)** — v1.4.45에선 두 칸이
 `<input type="date">`(네이티브 달력 위젯)이었는데, 표시 형식이 브라우저/OS 로케일에
 고정돼 `2026-06-24`처럼 길게 나오고(WebView2 한국어), 좁은 달력 칼럼(270px)에 두 칸+
 해제 버튼을 넣으니 잘려 보였다(사용자 스크린샷). 네이티브 date 입력은 CSS/JS로 표시
@@ -299,9 +299,28 @@ JS `renderDetail`. **상세 패널을 되살리지 말 것** — 날짜 열람�
   `applyRange`가 이걸로 `rangeStart/End`를 채우므로 **내부 상태·`applyFilter` 비교는
   기존 그대로 `YYYY-MM-DD`**(필터 로직은 손대지 않았다). 시작>종료면 파싱값 기준으로 스왑.
 - `rangeFmt('2026-06-24')` → `'26/06/24'`: 입력칸 정규화 표시와 `cntbar` 초록 칩 라벨에
-  모두 쓴다. 개별 날짜 선택은 위 달력 그리드 클릭으로 계속 가능하므로 date picker를
-  없앤 손실은 없다. 검증: Playwright로 `260610`/`260617` 타이핑→`26/06/10`~`26/06/17`
+  모두 쓴다. 검증: Playwright로 `260610`/`260617` 타이핑→`26/06/10`~`26/06/17`
   자동 포맷·8건 필터·역순 입력 자동 스왑 확인. **다시 `type="date"`로 되돌리지 말 것.**
+
+**달력 아이콘(클릭 날짜 선택) 복원 (v1.4.48)** — v1.4.46에서 네이티브 date를 없애면서
+"달력 팝업으로 클릭해 날짜를 고르던 기능"도 같이 사라졌다는 사용자 지적이 있었다.
+텍스트칸의 타이핑·`26/06/24` 형식은 그대로 두고, **각 텍스트칸을 `<span class="rin">`
+으로 감싸 그 안에 아이콘만 보이는 네이티브 `<input type="date" class="rpick">`을 나란히**
+두어 클릭 선택을 되살렸다(`#rsd`=시작, `#red`=종료).
+- CSS: `.rin`이 텍스트칸+아이콘을 한 테두리 박스로 묶고, `.rpick`은 `color:transparent`
+  +`::-webkit-datetime-edit`/`inner-spin-button`/`clear-button`을 `display:none`으로 감춰
+  `::-webkit-calendar-picker-indicator`(달력 아이콘)만 폭 18px로 남긴다 → 텍스트칸 오른쪽에
+  작은 달력 버튼처럼 보인다. `.cal-range input{flex:1}` 전역 규칙은 `.cal-range .rin`
+  기준으로 바꿔, 텍스트칸만 늘어나고 아이콘은 18px 고정.
+- 동작: 아이콘 클릭 → 네이티브 달력 팝업 → 날짜 선택 시 `onchange="rangePick('rs',this.value)"`.
+  `rangePick(target,iso)`가 `iso`(`YYYY-MM-DD`)를 `rangeFmt`로 `26/06/24`로 만들어 텍스트칸에
+  넣고 `applyRange()`. 그래서 **타이핑과 달력 클릭 둘 다로 기간을 설정**할 수 있다.
+- `applyRange`/`clearRange`가 `#rsd`/`#red`의 `value`도 `YYYY-MM-DD`로 동기화 → 팝업을 다시
+  열면 현재 선택된 날짜(월)에서 열린다.
+- `showPicker()`에 의존하지 않는다(아이콘 자체가 진짜 `type="date"` 입력이라 클릭하면
+  브라우저가 팝업을 연다) — WebView2 버전 의존성/무동작 위험 없음. 검증: Playwright로
+  아이콘 클릭(=date input change) 시 텍스트칸이 `26/06/24`로 채워지고 상태가
+  `2026-06-24 ~ 2026-06-30`이 되는 것, 아이콘 폭 18px 렌더 확인. `.rpick`을 지우지 말 것.
 
 ### 달력 요일/오늘 색상 (v1.4.26)
 `renderCal`에서 각 날짜의 `new Date(calY,calM-1,d).getDay()`로 요일을 계산해

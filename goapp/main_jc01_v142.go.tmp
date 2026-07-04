@@ -654,7 +654,11 @@ select{padding:6px 8px;border:1px solid #cbd5e0;border-radius:6px;font-size:12px
 .day.td2{background:#3b82f6;color:#fff;font-weight:700}.day.td2::after{background:#fff}
 .day.em{cursor:default}.day.em:hover{background:none}
 .cal-range{display:flex;align-items:center;gap:4px;padding:6px 10px;border-top:1px solid #edf2f7;font-size:11px;color:#4a5568}
-.cal-range input{flex:1;min-width:0;font-size:11px;padding:2px 4px;border:1px solid #cbd5e0;border-radius:4px}
+.cal-range .rin{flex:1;min-width:0;display:flex;align-items:center;border:1px solid #cbd5e0;border-radius:4px;overflow:hidden;background:#fff}
+.cal-range .rin input[type=text]{flex:1;min-width:0;font-size:11px;padding:2px 4px;border:none;outline:none;background:none}
+.cal-range .rpick{flex:0 0 18px;width:18px;padding:0;border:none;background:none;cursor:pointer;color:transparent}
+.cal-range .rpick::-webkit-datetime-edit,.cal-range .rpick::-webkit-inner-spin-button,.cal-range .rpick::-webkit-clear-button{display:none}
+.cal-range .rpick::-webkit-calendar-picker-indicator{margin:0;padding:0;cursor:pointer;opacity:.6}
 .cal-range button{background:#e2e8f0;border:none;border-radius:4px;padding:3px 7px;font-size:10px;cursor:pointer;color:#4a5568}
 .cal-range button:hover{background:#cbd5e0}
 .cal-hint{padding:6px 10px;font-size:10px;color:#a0aec0;text-align:center;border-top:1px solid #edf2f7}
@@ -686,7 +690,7 @@ mark{background:#fef08a;border-radius:2px}
 </head>
 <body>
 <div class="topbar">
-  <h1>📋 인수인계 관리 [JC01]</h1><span style="font-size:10px;color:#64b5f6;background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:4px;font-weight:400;letter-spacing:0.5px">v1.4.47</span>
+  <h1>📋 인수인계 관리 [JC01]</h1><span style="font-size:10px;color:#64b5f6;background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:4px;font-weight:400;letter-spacing:0.5px">v1.4.48</span>
   <span class="badge" id="tbadge">0건</span>
   <span id="netbadge" onclick="showNetInfo()" style="font-size:11px;padding:2px 8px;border-radius:99px;cursor:pointer;color:#f87171" title="확인 중...">●</span>
   <div class="spacer"></div>
@@ -738,9 +742,9 @@ mark{background:#fef08a;border-radius:2px}
       <div class="days" id="days"></div>
       <div class="cal-range">
         <span>기간</span>
-        <input type="text" id="rs" placeholder="26/06/24" maxlength="8" inputmode="numeric" oninput="rangeType(this)" onchange="applyRange()">
+        <span class="rin"><input type="text" id="rs" placeholder="26/06/24" maxlength="8" inputmode="numeric" oninput="rangeType(this)" onchange="applyRange()"><input type="date" id="rsd" class="rpick" onchange="rangePick('rs',this.value)"></span>
         <span>~</span>
-        <input type="text" id="re" placeholder="26/06/24" maxlength="8" inputmode="numeric" oninput="rangeType(this)" onchange="applyRange()">
+        <span class="rin"><input type="text" id="re" placeholder="26/06/24" maxlength="8" inputmode="numeric" oninput="rangeType(this)" onchange="applyRange()"><input type="date" id="red" class="rpick" onchange="rangePick('re',this.value)"></span>
         <button onclick="clearRange()">해제</button>
       </div>
       <div class="cal-hint">날짜 클릭=그 날짜만 표시(여러 개 가능) · 기간 입력=시작~종료 사이 전체 표시</div>
@@ -1236,17 +1240,25 @@ function rangeType(el){ // 숫자만 받아 2,4자리 뒤에 / 자동 삽입 →
   else if(v.length>=3) v=v.slice(0,2)+'/'+v.slice(2);
   el.value=v;
 }
+// 달력 아이콘(#rsd/#red, 네이티브 date)으로 고른 날짜(YYYY-MM-DD)를 텍스트칸(26/06/24)에
+// 반영. 텍스트 타이핑과 달력 클릭 둘 다로 기간을 설정할 수 있다.
+function rangePick(target, iso){
+  document.getElementById(target).value = iso ? rangeFmt(iso) : '';
+  applyRange();
+}
 function applyRange(){
   let a=rangeParse(document.getElementById('rs').value), b=rangeParse(document.getElementById('re').value);
   if(a&&b&&a>b){const t=a;a=b;b=t;}
   rangeStart=a; rangeEnd=b;
   if(a) document.getElementById('rs').value=rangeFmt(a);
   if(b) document.getElementById('re').value=rangeFmt(b);
+  document.getElementById('rsd').value=a||''; document.getElementById('red').value=b||''; // 달력 팝업이 고른 날짜에서 열리게 동기화
   applyFilter();
 }
 function clearRange(){
   rangeStart=''; rangeEnd='';
   document.getElementById('rs').value=''; document.getElementById('re').value='';
+  document.getElementById('rsd').value=''; document.getElementById('red').value='';
   applyFilter();
 }
 

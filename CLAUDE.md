@@ -1,31 +1,27 @@
 # CLAUDE.md — 작업 규칙 (토큰 절약 우선)
 
-이 파일은 **큰 파일을 열지 않고도 작업할 수 있도록** 핵심 사실을 하드코딩한
-것이다. 아래에 답이 있으면 원본 파일을 다시 읽지 말고 이 문서를 신뢰하라.
-상세 배경은 `HANDOFF.md`에 있으나, 일상 작업에는 이 문서만으로 충분하다.
+원본 파일을 다시 읽지 말고 이 문서를 신뢰하라.
 
-## ⛔ 절대 통째로 읽지 말 것 (토큰 낭비 지점)
+## ⛔ 절대 통째로 읽지 말 것
 
-1. **`goapp/initial_data_v142.json`** — 402 KB / 12,457줄. 전체 읽으면 ~10만 토큰.
-   - 내용: JC01 초기 데이터 **1384건** (전부 `dong="JC01"`), ID `100001~101384`.
-   - 스키마는 아래 "데이터 모델" 참고. 값 확인이 필요하면 `head`/`grep`으로
-     특정 줄만, 편집이 필요하면 `python3`로 스크립트 처리 (개별 Read/Edit 금지).
-2. **`goapp/vendor/`** — 10.5 MB / 684개 파일. 오프라인 빌드용 의존성.
-   - **grep/glob 시 반드시 제외**: `--glob '!goapp/vendor/**'` 또는 `type` 지정.
-   - 이 안의 코드는 우리가 건드리지 않는다. 절대 탐색/읽기 대상 아님.
+1. **`goapp/initial_data_v142.json`** — 402 KB / 12,457줄. JC01 초기 데이터 1384건
+   (전부 `dong="JC01"`), ID `100001~101384`. 확인은 `grep`/`head`, 편집은 `python3`.
+2. **`goapp/vendor/`** — 10.5 MB / 684개 파일. grep/glob 시 `--glob '!goapp/vendor/**'`
+   또는 `type` 지정으로 제외. 건드리지 않음.
 
-## 📁 우리가 관리하는 파일은 6개뿐 (vendor 제외)
+## 📁 관리 파일 (vendor 제외)
 
 ```
-HANDOFF.md                     상세 인수인계 (배경/사건사고)
+HANDOFF.md                     빌드/이슈 참고
 CLAUDE.md                      이 파일
 goapp/go.mod
-goapp/initial_data_v142.json   embed 데이터 (위 경고 참고)
+goapp/initial_data_v142.json   embed 데이터
 goapp/main_jc01_v142.go.tmp    JC01 소스 (정본)
 goapp/main_jc02_v142.go.tmp    JC02 소스 (정본)
 ```
 
 `main.go`는 빌드 시 생성되는 임시 파일(.gitignore됨). 소스는 `.go.tmp` 두 개다.
+파일명에 `_v142` 접미사가 붙은 게 유일한 정본. 다른 이름의 main_jc01.go 등은 무시.
 
 ## 🔨 빌드 & 버전
 
@@ -34,25 +30,22 @@ goapp/main_jc02_v142.go.tmp    JC02 소스 (정본)
 ```bash
 export GOPATH=$HOME/go && export PATH=$PATH:/usr/local/go/bin
 cd goapp
-# JC01 (JC02는 파일명만 jc02로)
 cp main_jc01_v142.go.tmp main.go && gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
   go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.51.exe .
 rm -f main.go
 ```
 
-- `-ldflags`에 **`-s -w` 넣지 말 것** (백신 오탐 원인).
-- **빌드해서 전달할 때마다 버전을 올린다.** 소스 2개 HTML의 `v1.4.X` 문자열
+- `-ldflags`에 `-s -w` 넣지 말 것 (백신 오탐 원인).
+- 빌드해서 전달할 때마다 버전을 올린다. 소스 2개 HTML의 `v1.4.X` 문자열
   (각 파일 690번째 줄)과 이 문서·`HANDOFF.md`의 버전도 함께 바꾼다.
+- **문서(CLAUDE.md/HANDOFF.md) 갱신은 버전 5개마다 한 번씩만** 몰아서 정리.
 - `go vet`는 로컬(리눅스)에서 `syscall.NewLazyDLL`, `buildHTML`의 Sprintf(`%`)를
-  오탐한다 — 둘 다 예전부터 있던 노이즈. `GOOS=windows` 빌드가 통과하면 정상.
+  오탐한다 — 노이즈. `GOOS=windows` 빌드가 통과하면 정상.
 
 ## ⚠️ 두 소스는 997줄이 동일, 딱 13곳만 다르다
 
-`main_jc01`과 `main_jc02`는 **거의 동일**하다. 한쪽을 수정하면 **반드시 다른
-쪽도 같은 위치에 반영**하라 (아래 13곳 외에는 두 파일이 항상 같아야 함).
-확인은 `diff main_jc01_v142.go.tmp main_jc02_v142.go.tmp` 한 줄이면 된다 —
-두 파일을 각각 Read 하지 말 것.
+확인은 `diff main_jc01_v142.go.tmp main_jc02_v142.go.tmp` 한 줄이면 된다.
 
 다른 곳 (JC01 → JC02 기준 라인번호, v1.4.51 시점):
 | 줄 | JC01 | JC02 |
@@ -60,18 +53,18 @@ rm -f main.go
 | 307 | 주석 "JC01은 100000번대" | "JC02는 200000번대" |
 | 310 | `max := 100000` | `max := 200000` |
 | 312 | `r.ID < 200000` | `r.ID < 300000` |
-| 329 | `const myDong = "JC01"` | `= "JC02"` (Go 쓰기권한 동) |
-| 470 | `...\1동\Pending Item&지속관리` | `...\CELL_MEE_..\P10 Cell Sorter` (파츠폴더) |
-| 481 | `"JC_1 Sorter 필요 Parts"` | `"JC_2 Sorter 필요 Parts2"` (파츠파일명) |
+| 329 | `const myDong = "JC01"` | `= "JC02"` |
+| 470 | `...\1동\Pending Item&지속관리` | `...\CELL_MEE_..\P10 Cell Sorter` |
+| 481 | `"JC_1 Sorter 필요 Parts"` | `"JC_2 Sorter 필요 Parts2"` |
 | 690 | `[JC01]` (제목) | `[JC02]` |
 | 703-704 | `JC01 selected` | `JC02 selected` |
 | 763 | `<option value="JC02">` | `<option value="JC02" selected>` |
-| 835 | `const MY_DONG='JC01'` | `='JC02'` (JS 쓰기권한 동) |
+| 835 | `const MY_DONG='JC01'` | `='JC02'` |
 | 844 | `memoSave('hk_memo',…)` | `memoSave('hk_memo_jc02',…)` |
 | 850 | `memoLoad('hk_memo')` | `memoLoad('hk_memo_jc02')` |
 | 1002 | `fD.value='JC01'` | `='JC02'` |
 
-> 참고: PM 체크리스트 저장 키는 `'hk_pm_'+MY_DONG`으로 **양쪽 파일 동일**(변수라 diff 아님).
+> PM 체크리스트 저장 키는 `'hk_pm_'+MY_DONG`으로 양쪽 파일 동일(diff 아님).
 
 ## 🗂 데이터 모델 (Record)
 
@@ -80,223 +73,59 @@ type Record struct {
     ID int; Date, Equip, Worker, Shift, Category, Content, Dong string; Flag bool
 }  // json: id/date/equip/worker/shift(omitempty)/content/category/dong/flag(omitempty)
 ```
-- **Shift(근무조, v1.4.37)**: `"주"`/`"야"`/빈 문자열. 새 항목 모달의 구분 밑
-  칸(`#fs`)에서 선택. `omitempty`라 옛 레코드엔 없어도 하위호환. 메인 목록에서
-  근무자 칸 이름 위에 한 줄로 표시(`workerCell(w,shift)`의 `.wk-shift`).
-- `ID`는 **정수** (문자열로 절대 바꾸지 말 것 — WebView2 바인딩 의존).
-- **정렬(메인 목록, v1.4.39 기준)**: `flag`(최상단) → 날짜 내림 → **근무조 우선순위**
-  (`SHIFT_ORDER`: 주>야, 빈 값은 맨 뒤) → **구분 우선순위**
-  (`CAT_ORDER`: 전달사항>Classification>기자재관리>설비이슈, 그 외인 감소활동은
-  맨 뒤) → **설비 호기 순서**(`EQUIP_BY_DONG` 나열 순) → id 내림(안정성 타이브레이커).
-  `flag`는 행별 ⚑ 버튼으로 토글, `dbSetFlag(id,flag)`가 메모리 갱신 후
-  백그라운드로 DB에 저장(공유).
-- **ID 대역 분리**: JC01 = `100000`번대(100001~199999), JC02 = `200000`번대.
-  `nextID()`는 자기 동 대역 안에서만 최댓값을 찾고, `migrateIDOffsets()`가
-  옛 순차 ID를 시작 시 자동 이관한다. 대역이 겹치면 안 됨.
-- 저장: `\\172.23.11.175\...\records.json` (네트워크 공유, JC01/JC02 혼재,
-  `dong`으로 구분) + `%APPDATA%\인수인계관리\records_local_backup.json` (폴백).
-  읽기 5초 / 쓰기 3초 타임아웃(goroutine+channel).
-- **저장은 백그라운드 (v1.4.25)**: 추가/수정/삭제/플래그는 메모리(`records`)만
-  즉시 바꾸고 반환 → `requestSave()`가 백그라운드 flusher에 신호 → `flushOnce()`가
-  네트워크에 저장. UI 스레드가 네트워크 IO에 안 막혀 렉이 사라짐. 아래 회귀 방지 참고.
+- `ID`는 정수 (문자열 금지 — WebView2 바인딩 의존). JC01=100000번대(100001~199999),
+  JC02=200000번대. `nextID()`는 자기 동 대역 안에서만 최댓값 탐색.
+- `Shift`: `"주"`/`"야"`/빈 문자열. 모달 `#fs`에서 선택. `workerCell(w,shift)`가
+  근무자 이름 위에 표시.
+- 정렬(메인 목록): `flag` → 날짜 내림 → 근무조(`SHIFT_ORDER=['주','야']`) →
+  구분(`CAT_ORDER=['전달사항','Classification','기자재관리','설비이슈']`, 그 외 맨 뒤) →
+  설비 호기(`EQUIP_BY_DONG` 순) → id 내림.
+- 저장: `\\172.23.11.175\...\records.json` (JC01/JC02 공유, `dong`으로 구분) +
+  `%APPDATA%\인수인계관리\records_local_backup.json` (폴백). 읽기 5초/쓰기 3초 타임아웃.
+- 저장은 백그라운드: 바인딩은 `recMu` 잠그고 메모리만 변경 후 `requestSave()` →
+  `startFlusher`의 단일 goroutine이 `flushOnce`로 직렬 저장(상대 동=네트워크 최신본,
+  내 동=메모리 정본으로 병합).
+- 설비명: `ATW#21/22/31/32/41/42/51/52` → `#21~#52`로 통합(`ATW#61`만 예외).
+  `migrateEquipNames()`가 시작 시 자동 변환.
+- 새 항목 모달 기본값: 동=현재 필터, 날짜=오늘, 근무자/구분=같은 동 ID 최댓값 레코드
+  값 따라감, 근무조=기본값 없음.
 
 ## 🧭 Go 함수 위치 (main_jc01, 대략 동일)
 
 | 줄 | 함수 |
 |----|------|
 | 20 | `//go:embed` + `initialDataJSON` |
-| 44 `recMu`(뮤텍스) · 49 `saveSignal`(chan) | records 보호 / 저장 신호 |
+| 44 `recMu` · 49 `saveSignal` | records 보호 / 저장 신호 |
 | 51 `getDataDir` · 62 `getNetworkDir` | 경로 |
 | 69 `readWithTimeout` · 99 `writeWithTimeout` | 타임아웃 IO |
 | 155 `migrateEquipNames` · 171 `migrateIDOffsets` | 마이그레이션 |
 | 190 `loadRecords` · 234 `saveRecords` | 데이터 로직 |
-| 244 `requestSave` · 254 `startFlusher` · 269 `flushOnce` | 백그라운드 저장(내 동=메모리·상대 동=네트워크 병합) |
-| 309 `nextID(rs)` · 329 `myDong`(상수) | 채번 / 쓰기권한 동 |
-| 331 `handleBind` | WebView2 바인딩 (dbGetAll/dbAdd/dbUpdate/dbDelete/dbSetFlag→requestSave, memoSave/memoLoad). 소유권은 lock 안 루프에서 검사. dbAdd/dbUpdate 시그니처에 `shift` 인자 포함(v1.4.37) |
+| 244 `requestSave` · 254 `startFlusher` · 269 `flushOnce` | 백그라운드 저장 |
+| 309 `nextID(rs)` · 329 `myDong` | 채번 / 쓰기권한 동 |
+| 331 `handleBind` | WebView2 바인딩 (dbGetAll/dbAdd/dbUpdate/dbDelete/dbSetFlag, memoSave/memoLoad) |
 | 469 `openPartsFileImpl` · 501 `maximizeWindow` | |
-| 507 `main` | loadRecords→startFlusher→WebView2. 종료 시 flushOnce로 마지막 저장 |
-| 549 `buildHTML` | UI 전체 (HTML+CSS+JS, ~600줄) |
+| 507 `main` | loadRecords→startFlusher→WebView2 |
+| 549 `buildHTML` | UI 전체 (HTML+CSS+JS) |
 
-## 🚫 회귀 방지 (HANDOFF의 과거 사건 요약 — 상세는 HANDOFF.md)
+## 🚫 현재 구현 상태 (한 줄 요약, 이유·이력 생략)
 
-- 테이블은 `<table>` 아님, **div Flexbox** (`.frow`/`.fc-*`). 되돌리지 말 것.
-- 네트워크 상태는 `dbGetAll()` 응답에 실어 보냄. **별도 상태 전용 바인딩
-  추가 금지** (dbGetPath 단독 호출이 WebView2에서 hang 재발 위험).
-- **저장은 백그라운드 + 동별 병합 (v1.4.25, 예전 saveMerged 대체)** — 바인딩
-  (dbAdd/Update/Delete/SetFlag)은 `recMu` 잠그고 메모리만 바꾸고 `requestSave()`
-  후 즉시 반환(네트워크 IO로 UI 막지 말 것 — 1만 건 렉 원인). 실제 저장은
-  `startFlusher`의 단일 goroutine이 `flushOnce`를 **직렬로** 실행: 네트워크를 다시
-  읽어 **상대 동은 네트워크 최신본, 내 동은 메모리(정본)** 로 합쳐 쓴다(한 동은
-  한 PC만 쓰므로 성립). `saveSignal`(버퍼1)로 연속 변경은 coalesce. 종료 시
-  `main`이 `flushOnce` 한 번 더 호출해 막 누른 변경 유실 방지. **다시 UI 스레드에서
-  동기 저장(saveMerged 방식)으로 되돌리지 말 것.** `records`는 항상 `recMu` 아래에서.
-- 무거운 렌더링 전 `requestAnimationFrame` 한 프레임 양보 유지(배지 리페인트).
-- **메인 목록은 가상 스크롤(점진적 렌더)** — `renderTable`이 `fil` 전량을
-  `innerHTML`로 그리지 말 것(1만 건 렉 원인). `RCHUNK`(60)씩 `renderMore()`로
-  이어붙이고 `.tw` 스크롤 하단에서 다음 묶음 로드. 전량 렌더로 되돌리지 말 것.
-- **메모는 `localStorage` 금지, 로컬 파일 저장** — `SetHtml`(NavigateToString)은
-  origin이 opaque라 localStorage가 재시작 시 유실된다. `memoSave/memoLoad` Go
-  바인딩으로 `%APPDATA%\인수인계관리\<key>.txt`에 저장. localStorage로 되돌리지 말 것.
-- **동별 쓰기 권한 제한 (v1.4.22)** — 자기 동(`myDong`/`MY_DONG`) 레코드만
-  추가/수정/삭제/플래그 가능. 상대 동은 읽기 전용. Go의 dbAdd/Update/Delete/
-  SetFlag가 상대 동이면 거부(UI 우회해도), UI는 상대 동 행의 ⚑·수정·삭제를
-  숨김(`.foreign`). dbAdd는 dong을 항상 myDong으로 강제. (v1.4.25에서 별도
-  `isOwnRecord` 함수는 없애고, 각 바인딩의 `recMu` 잠근 루프가 `Dong==myDong`
-  일 때만 변경 → 소유권 검사가 변경과 원자적. 상대 동 id는 매칭이 안 돼 거부됨.)
-- **상대 동 행 글자색 (v1.4.23)** — `.frow.foreign`은 배경만 살짝 회색(`#fafbfc`),
-  글자색은 검은색 그대로 유지. 예전엔 내용 글자도 회색(`#a0aec0`)으로 흐리게
-  했으나 가독성 이슈로 제거함. 다시 흐리게 만들지 말 것.
-- **내용 전체보기 X 버튼 (v1.4.24)** — `viewFull`의 닫기 버튼은 `this.closest('[style]')`로
-  찾지 말 것: 버튼 자신도 `style` 속성이 있어 자기 자신이 매칭되어 지워지고 창은
-  안 닫힌다. `.vfclose` 클래스로 찾아 `d.remove()`(오버레이 자체)를 호출해야 함.
-- **달력 요일/오늘 색 (v1.4.26)** — `renderCal`에서 날짜별 `getDay()`로 토요일은
-  `.sat`(파랑 글자), 일요일은 `.sun`(빨강 글자) 클래스를 붙인다. 오늘(`.td2`)은
-  파란 배경+흰 글자로 요일색보다 우선(CSS에서 `.td2`를 `.sat`/`.sun`보다 뒤에
-  선언해 우선순위 확보). **선택된 날짜(`.sd`)는 노란 배경(`#f6e05e`)+갈색 글자
-  (`#744210`)로 오늘(파랑)과 구별(v1.4.35)** — `.sd`가 `.td2`보다 CSS에서 먼저
-  선언돼 있어, 오늘 날짜를 선택하면 `.td2`가 이겨 파란색 유지(의도된 동작).
-- **자정 넘어가면 '오늘' 자동 갱신 (v1.4.43)** — `today()`/`.td2`는 `renderCal`이
-  실행될 때만 `new Date()`로 계산된다. 앱을 켜둔 채 날짜가 바뀌면(예: 밤새 켜둠)
-  `renderCal`이 다시 안 불려 오늘 표시가 어제에 멈춘다(사용자 신고: 7/4인데 7/3에
-  파란 표시). `init` 끝에서 `scheduleMidnight()`를 걸어 **다음 날 00:00:02에
-  `renderCal`을 다시 부르고 매일 자정마다 재예약**한다. 자정에서 1~2초 여유를 둔
-  건 `setTimeout` 오차로 자정 직전에 깨어나면 `new Date()`가 아직 어제라서다.
-  이 스케줄러를 지우면 밤샘 시 오늘 표시가 안 넘어가는 버그가 재발한다.
-- **날짜 필터 (v1.4.27, v1.4.36에서 다중 선택으로 확장)** — 달력 밑 상세 패널
-  (`det-card`/`renderDetail`)을 없애고, 달력 날짜 클릭(`selDate2`)은 메인 목록을
-  그 날짜(들)만 보이게 하는 **필터**다. 상태는 `selDates`(Set, 여러 날짜 누적 가능) —
-  클릭할 때마다 그 날짜만 토글(있으면 제거, 없으면 추가). `applyFilter`가
-  `selDates.size>0 && !selDates.has(r.date)`로 거른다. `cntbar`의 파란 칩(선택 3개
-  이하면 날짜 나열, 많으면 "N일 선택")의 ✕(`clearDateFilter`)로 전체 해제.
-  `rowClick`은 하이라이트만(상세 패널 부활 금지). **저장(`save`) 후에도 날짜 필터는
-  유지한다 (v1.4.44)** — 예전엔 `selDates.clear()`로 필터를 풀었으나 사용자가 새 항목
-  추가 시 필터가 풀린다고 불편을 호소해 제거함. `save`는 달력만 저장 항목의 달로
-  옮기고(`calY/calM`) 필터는 그대로 둔다. 다시 `selDates.clear()`를 넣지 말 것.
-- **기간(범위) 날짜 필터 (v1.4.45)** — 달력 바로 밑 `.cal-range` 바에 시작(`#rs`)·
-  종료(`#re`) `<input type="date">` 두 칸을 뒀다. 예전엔 6/10~6/17을 보려면 날짜를
-  하나씩 다 클릭해야 했는데, 이제 시작·종료만 넣으면 그 사이 전체가 표시된다. 상태는
-  `rangeStart`/`rangeEnd`(빈 문자열이면 미적용), `applyRange()`가 입력을 읽어(시작>종료면
-  자동 스왑) `applyFilter`를 부른다. `applyFilter`의 날짜 거르기는
-  `rangeStart&&r.date<rangeStart` / `rangeEnd&&r.date>rangeEnd`(날짜가 `YYYY-MM-DD`라
-  **문자열 비교로 대소 판정 가능**) — `selDates`(개별 클릭) 필터와 **AND로 함께** 걸린다.
-  한쪽만 넣으면 이후/이전 필터로 동작. 달력엔 범위 안 날짜에 연녹색 `.rng` 클래스가
-  붙고(단, `.sd`/`.td2`가 CSS 선언 순서상 뒤라 선택/오늘 표시가 이김), `cntbar`엔 초록
-  칩(📆 시작~종료 ✕`clearRange()`)이 뜬다. `clearRange()`가 입력·상태를 비운다.
-  **입력 형식 YY/MM/DD 텍스트 (v1.4.46)** — 예전엔 `<input type="date">`(네이티브
-  달력)였는데, 표시 형식이 OS 로케일 고정(`2026-06-24`)이라 좁은 달력 칸에서 잘리고
-  길었다. 사용자가 `26/06/24` 형식을 원해 **`type="text"`로 바꿨다**(네이티브 date는
-  CSS/JS로 표시 형식을 못 바꾼다). `oninput="rangeType()"`이 숫자만 받아 2·4자리 뒤
-  `/`를 자동 삽입, `rangeParse('26/06/24')`가 `2026-06-24`로 되돌려 **내부 상태
-  (`rangeStart/End`)·비교는 그대로 `YYYY-MM-DD`** 유지(필터 로직 무변경). `rangeFmt`가
-  다시 `26/06/24`로 표시(입력칸·칩 모두). 다시 `type="date"`로 되돌리면 형식 요청이
-  깨지고 칸이 좁아 잘린다 — 되돌리지 말 것.
-  **달력 아이콘(클릭 선택) 복원 (v1.4.48)** — v1.4.46에서 네이티브 date를 없애며
-  달력 팝업 클릭 선택도 같이 사라졌다는 지적이 있어, 각 텍스트칸을 `<span class="rin">`
-  으로 감싸고 그 안에 **아이콘만 보이는 네이티브 `<input type="date" class="rpick">`**
-  를 나란히 뒀다(`#rsd`/`#red`). `.rpick`은 `::-webkit-datetime-edit`·스핀·클리어를
-  `display:none`으로 감추고 `::-webkit-calendar-picker-indicator`만 남겨(폭 18px) 달력
-  아이콘 버튼처럼 보인다. 아이콘 클릭→네이티브 달력 팝업→`onchange="rangePick('rs',값)"`
-  이 고른 `YYYY-MM-DD`를 `rangeFmt`로 `26/06/24`로 만들어 텍스트칸에 넣고 `applyRange`.
-  즉 **타이핑(26/06/24)과 달력 클릭 둘 다로 기간 설정 가능**. `applyRange`/`clearRange`가
-  `#rsd`/`#red`의 value도 동기화해 팝업이 현재 고른 날짜에서 열린다. `showPicker()`에
-  의존하지 않아(아이콘이 진짜 date input) WebView2에서 안전. `.rpick`을 지우지 말 것.
-- **메모 위치 (v1.4.28)** — 메모 카드(`.memo-card`)는 예전엔 표와 달력 사이 별도
-  칼럼이었으나, 이제 `.right`(달력) 칼럼 안 **달력 밑**으로 옮김. `.memo-card`는
-  `flex:1`로 달력 아래 남은 높이를 채운다. 표(`.left`)가 그만큼 넓어짐.
-  **달력 밑 안내문 제거 + 메모 세로 확대 (v1.4.50)** — 달력 밑에 있던 안내문
-  (`.cal-hint`, "날짜 클릭=… 기간 입력=…")을 사용자 요청으로 HTML에서 제거해 달력
-  카드 높이를 줄였고(그만큼 메모가 커짐), `.memo-card`의 `min-height`를 120→260px로
-  올려 창이 짧을 때도 메모가 더 길게 보이게 했다. `.cal-hint` CSS 규칙은 남겨뒀지만
-  (미사용, 무해) HTML에서 그 div는 없앴다. `.memo-card`는 여전히 `flex:1`이라 창이
-  크면 달력 밑 공간을 전부 채운다.
-- **구분(카테고리) 목록 (v1.4.29 기준: 설비이슈/전달사항/기자재관리/Classification/감소활동)** —
-  추가·변경 시 **3곳을 모두** 고쳐야 함: ① 메인 필터 `<select id="fC">` ② 새항목 모달
-  `<select id="fc">` ③ 배지 색 CSS `.c<이름>`(이름에 공백 없이). 하나만 빠지면 필터/입력/
-  색 중 하나가 어긋난다.
-- **설비별 PM 체크리스트 (v1.4.31, 상시 표시 표)** — 메인 목록과 달력 **사이**의
-  독립 칼럼 `.pm-col`. 이 동의 필터 설비(`EQUIP_BY_DONG[MY_DONG]`)를 반으로 나눠
-  좌/우로 배치. 내용칸은 `contenteditable` div(`.pm-cell.pm-text`), 입력마다 `savePmCell`이
-  `pmData[설비]=innerText` 후 저장. 메모처럼 로컬 파일 저장이라 껐다 켜도 유지.
-  키 `'hk_pm_'+MY_DONG`(동별 파일), 값 `{설비:내용}` JSON(`pmData`). `renderPmTable`이
-  시작 시 표를 그린다(그 뒤엔 셀 편집만, 재렌더 없음 → 포커스 유지). `localStorage`로
-  되돌리지 말 것(메모와 동일 — opaque origin 유실). v1.4.30의 드롭다운 방식은 폐기.
-  **⚠️ 구조 변경 (v1.4.51): 4칸 단일 그리드 → 좌/우 독립 2칸 그리드 2개** — 예전엔
-  `.pm-grid`가 `설비|내용|설비|내용` **한 개의 4칸 그리드**였다. 그러면 CSS Grid 행 높이가
-  "그 행의 좌·우 설비 중 더 높은 쪽"에 맞춰져서, 한 설비 내용이 길면 **옆(같은 행) 설비칸이
-  덩달아 세로로 늘어나** 거대한 빈 칸이 생겼다(사용자 스크린샷: #61이 길어 옆 #5가 통째로
-  늘어남). 이제 `.pm-grid`는 `display:flex`(가로) 스크롤 컨테이너이고, 그 안에 좌/우 각각
-  독립된 `.pm-half`(`display:grid;grid-template-columns:max-content 1fr`, 설비|내용 2칸)를
-  둔다. 두 반쪽이 **서로 다른 그리드**라 한 설비 행 높이가 옆 반쪽에 영향 없음(행 높이
-  커플링 제거). `renderPmTable`은 좌 설비들→`L`, 우 설비들→`R` 문자열로 각각 만들어
-  `<div class="pm-half">L</div><div class="pm-half">R</div>` 주입. 트레이드오프: 좌·우가 더는
-  행 단위로 정렬되지 않는다(한쪽이 길면 다른 쪽은 그 옆에서 독립적으로 흐름) — 의도된 동작.
-  스크롤은 여전히 `.pm-grid`의 `overflow-y:auto` **1개**(v1.4.49). 아래 4칸 그리드 시절의
-  nth-child·트랙 관련 문단은 **폐기된 구조에 대한 역사 기록**이니, 지금 구조엔 적용 안 됨.
-  **내용 칸 폭 15% 축소 (v1.4.40, v1.4.41에서 배치 버그 수정) → v1.4.47에서 원복, v1.4.51에서 구조 폐기** —
-  ⚠️ 아래 축소는 **v1.4.47에서 되돌렸다**. 현재 `grid-template-columns`는
-  `max-content 1fr max-content 1fr`(4트랙)이고 내용 칸이 헤더 폭까지 꽉 찬다.
-  아래 문단은 auto-flow 버그 지식(트랙 수≠셀 수 주의) 보존용이며, 트랙을 다시
-  추가할 일이 있을 때만 참고하라. 원래 축소 방식은:
-  `grid-template-columns`가 `max-content .85fr max-content .85fr .3fr`. 내용
-  칸(`1fr`이던 것)을 `.85fr` 두 개로 줄이고, 남는 `.3fr`을 5번째 트랙으로 둬서
-  오른쪽 여백으로 흡수시켰다. **주의**: 트랙만 5개로 늘리면 CSS Grid의 auto-flow가
-  칸을 4개가 아닌 5개 단위로 채우면서 매 논리적 행마다 칸이 하나씩 밀리는 버그가
-  난다(v1.4.40에서 실제로 발생 — 사용자 스크린샷으로 발견). `renderPmTable`이
-  DOM에 4개씩(설비|내용|설비|내용) 순서로 셀을 넣는 것과 grid-template-columns의
-  트랙 수(5)가 안 맞아서 생기는 문제이므로, 5번째 트랙은 "폭만 있고 절대 채워지지
-  않는 트랙"으로 강제해야 한다 — `.pm-grid>*:nth-child(4n+1..4n)`으로 매 셀에
-  `grid-column:1~4`를 명시해 auto-flow가 5번째 칸을 절대 쓰지 않게 고정했다
-  (v1.4.41). `fr`은 상대값이라 다른 `fr` 트랙이 없으면 계수를 줄여도 그대로 꽉
-  채우므로, 폭을 줄이려면 이렇게 트랙을 추가하는 방식이 맞다 — 다만 **트랙을
-  추가할 때마다 반드시 `nth-child`로 열을 명시 고정할 것** (안 그러면 이 버그가
-  재발한다).
-  **내용 칸을 헤더 폭까지 원복 (v1.4.47)** — 위 `.3fr` 스페이서 트랙이 오른쪽에
-  회색 세로 띠로 보인다는 지적(사용자 스크린샷)이 있어, `.3fr` 트랙을 없애고 내용
-  칸을 다시 `1fr` 두 개로(`max-content 1fr max-content 1fr`, 4트랙) 되돌렸다. 이제
-  내용 칸이 "설비 PM 체크리스트" 헤더 폭까지 꽉 찬다. `nth-child` 열 고정(1~4)은
-  **그대로 남겨뒀다** — 4트랙이라 자연스러운 auto-flow와 결과가 같고, 나중에 트랙을
-  다시 손댈 때의 안전장치로 유지. Playwright로 마지막 내용 칸이 그리드 오른쪽 끝까지
-  닿는 것(gap 1px=패딩) 확인. 회색 띠를 다시 만들려면(폭 축소) 위 문단의 트랙 추가
-  방식을 따르되 반드시 `nth-child` 고정을 함께 둘 것.
-  **`.pm-col` 고정폭으로 전환, 메인 목록에 여백 양보 (v1.4.41)** — 예전엔
-  `.pm-col{flex:1;min-width:360px}`로 `.left`(메인 목록)와 똑같이 늘어나서, 내용
-  칸을 줄여도 그 여백이 PM 칸 안에서만 남고 메인 목록은 넓어지지 않았다.
-  `.pm-col{flex:0 0 360px;width:360px}`로 바꿔 더 이상 늘어나지 않게 고정 —
-  PM 체크리스트는 항상 달력(`.right`) 바로 왼쪽에 필요한 만큼의 폭만 차지하고,
-  창을 넓히거나 내용 칸 폭을 줄여서 생기는 여유 공간은 전부 `flex:1`인
-  `.left`(메인 목록/인수인계 내용)가 가져간다. `.pm-col`을 다시 `flex:1`로
-  되돌리지 말 것 — 메인 목록이 좁아지는 예전 문제로 되돌아간다.
-  **셀 내부 스크롤 → 전체 표 스크롤 1개로 (v1.4.42 → v1.4.49에서 제거)** —
-  v1.4.42에선 `.pm-cell.pm-text`에 `max-height:120px;overflow-y:auto`를 줘 긴 셀을
-  그 칸 안에서만 스크롤시켰다(행 세로 늘어남 방지 목적). 그런데 셀마다 스크롤바가
-  따로 생겨 "개별 설비마다 스크롤을 내려야 한다"는 불편 신고가 왔다(사용자 스크린샷).
-  **v1.4.49에서 `max-height`/`overflow`를 제거**해 셀은 내용 높이만큼 자라고, 스크롤은
-  `.pm-grid{flex:1;overflow-y:auto}`의 **전체 표 스크롤 1개**만 남겼다. 이제 PM 리스트
-  전체를 한 스크롤바로 위아래로 본다. 트레이드오프: 한 행에 긴 셀이 있으면 그 행(옆
-  설비 이름칸 포함)이 그만큼 세로로 길어진다 — 이는 "표 전체 스크롤 1개" 요구에 따른
-  의도된 동작. 다시 셀별 `overflow-y:auto`(개별 스크롤)로 되돌리지 말 것.
-- **근무자 셀 여러 줄 (v1.4.33)** — `rowHTML`의 근무자 칸은 `workerCell(r.worker,r.shift)`로
-  렌더. 쉼표로 구분된 근무자를 `<br>`로 나눠 여러 줄로 보이고, 가장 긴 이름
-  글자수에 따라 폰트를 12→8px로 줄여 근무자 칸(`.fc-w`)에 맞춘다. `<br>`가 flex에서
-  안 먹으므로 내부 블록 `.wk` div로 감쌈. 헤더의 "근무자"는 그대로. (v1.4.37에서
-  `shift` 인자 추가 — 아래 근무조 항목 참고.)
-- **메인 목록 칸 폭 축소 (v1.4.35)** — 동/날짜/설비/근무자 칸 폭과 가로 패딩을 글자
-  크기에 맞게 줄임: `.fc-dong`44/`.fc-d`58/`.fc-e`56/`.fc-w`68px(+패딩 3~4px). 설비는
-  최장값 `ATW#61`(JC01)이 기준이라 더 못 줄임(`.eb` 패딩도 7→5). 남는 폭은 내용
-  칸(`.fc-ct`, flex:1)이 가져감. 더 줄이면 실기에서 글자 잘릴 수 있으니 주의.
-- **근무조(Shift) 필드 (v1.4.37)** — `dbAdd`/`dbUpdate` 바인딩 시그니처가
-  `(date,equip,worker,shift,category,content,dong)`로 **worker와 category 사이에
-  shift가 추가**됐다. JS `save()`의 인자 순서와 반드시 맞춰야 함(순서 바뀌면
-  값이 엉뚱한 필드로 들어감). 모달의 `#fs` select(값 "주"/"야"/""), 목록에서는
-  `workerCell(w,shift)`가 근무자 이름 위에 한 줄로 표시(`.wk-shift`).
-- **근무조별 행 배경색 (v1.4.38)** — `rowHTML`이 `r.shift`에 따라 행에
-  `shift-day`(주, 옅은 노랑 `#fef9c3`) 또는 `shift-night`(야, 옅은 하늘색 `#dbeafe`)
-  클래스를 붙인다. CSS 선언 순서가 `.sel`→`shift-*`→`.foreign` 순이라, **상대 동
-  회색(`.foreign`)이 근무조 색보다 항상 우선**한다(동 구분이 더 중요). 반대로
-  근무조 색은 hover/선택(`.sel`) 파랑보다 우선 표시된다. 색을 더 진하게/다르게
-  바꿀 땐 이 우선순위(선언 순서)를 유지할 것.
-- **정렬에 근무조 추가 (v1.4.39, v1.4.46에서 순서 반전)** — `applyFilter`의 `fil.sort`
-  에서 날짜 다음, 구분(`CAT_ORDER`) 이전에 근무조 타이브레이커를 넣음:
-  `SHIFT_ORDER=['주','야']`, `shiftRank(s)`가 인덱스 반환(빈 값/기타는 맨 뒤).
-  **주간이 야간보다 먼저** 온다. (v1.4.39땐 '야→주'였으나 v1.4.46에서 사용자가
-  '주→야'로 바꿔달라 요청 — 이 배열 순서만 뒤집으면 됨. 착각해서 되돌리지 말 것.)
+- 테이블: `<table>` 아님, div Flexbox (`.frow`/`.fc-*`).
+- 네트워크 상태: `dbGetAll()` 응답에 포함. 별도 상태 바인딩 추가 금지(hang 위험).
+- 무거운 렌더링 전 `requestAnimationFrame` 1프레임 양보.
+- 메인 목록: 가상 스크롤(`RCHUNK=60`, `renderMore()`). 전량 렌더 금지.
+- 메모/PM: `memoSave/memoLoad`로 `%APPDATA%\인수인계관리\<key>.txt` 저장. localStorage 금지.
+- 동별 쓰기 권한: `myDong`/`MY_DONG`만 쓰기 가능, 상대 동은 서버에서도 거부.
+- 상대 동 행: `.frow.foreign` 배경만 회색, 글자색은 검정 유지.
+- 전체보기 닫기 버튼: `.vfclose` 클래스로 찾을 것(`closest('[style]')` 금지).
+- 달력 CSS 선언 순서: `.sd`(선택) → `.td2`(오늘) → `.sat`/`.sun` → 근무조 배경 → `.foreign`.
+- 자정 갱신: `scheduleMidnight()`가 매일 00:00:02에 `renderCal` 재호출.
+- 날짜 필터: `selDates`(Set), `save()` 후에도 유지.
+- 기간 필터: `.cal-range`의 `#rs`/`#re`(텍스트, `26/06/24` 형식) + `#rsd`/`#red`(아이콘
+  date input). 내부 상태(`rangeStart/End`)는 `YYYY-MM-DD`.
+- 메모: `.right` 칼럼 달력 밑, `flex:1`, `min-height:260px`.
+- 구분 목록 변경 시 3곳(`#fC`,`#fc`,`.c<이름>`) 동시 수정.
+- PM 체크리스트: `.pm-col`(고정폭 360px) 안 `.pm-grid`(flex, 스크롤 1개)에 `.pm-half`
+  2개(좌/우 독립 2칸 그리드, `renderPmTable`이 L/R 문자열 조립).
+- 근무자 셀: `workerCell(w,shift)`로 여러 줄+폰트 축소 렌더.
+- 근무조 필드: `dbAdd/dbUpdate(date,equip,worker,shift,category,content,dong)` 인자 순서 고정.
+- 근무조 행 배경: `shift-day`/`shift-night`, CSS 순서 `.sel`→`shift-*`→`.foreign`.

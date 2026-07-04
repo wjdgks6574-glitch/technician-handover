@@ -1,6 +1,6 @@
 # 인수인계 관리 프로그램 - 작업 인수인계 문서
 
-## 현재 버전: v1.4.44
+## 현재 버전: v1.4.45
 
 Go + WebView2 기반 Windows 데스크톱 앱. JC01(1동)/JC02(2동) 두 변형이 거의 동일한
 소스 구조를 공유하며, 각각 별도의 .exe로 빌드됨.
@@ -38,13 +38,13 @@ cd goapp
 cp main_jc01_v142.go.tmp main.go
 gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.44.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.45.exe .
 
 # JC02
 cp main_jc02_v142.go.tmp main.go
 gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC02_v1.4.44.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC02_v1.4.45.exe .
 ```
 
 **주의**: `-ldflags`에 `-s -w`를 넣지 마세요. 심볼 제거(압축)가 백신 오탐의
@@ -268,6 +268,24 @@ JS `renderDetail`. **상세 패널을 되살리지 말 것** — 날짜 열람�
 둔다. **주의**: 이 때문에 필터에 없는 날짜의 새 항목은 저장 직후 목록에 안 보일 수
 있으나(필터가 걸려 있으니 정상), 이는 의도된 동작이다 — 다시 `selDates.clear()`를
 넣지 말 것.
+
+**기간(범위) 날짜 필터 (v1.4.45)** — `selDates`(개별 날짜 클릭)만으로는 6/10~6/17
+같은 연속 구간을 보려면 날짜를 하나씩 다 클릭해야 해서 불편하다는 요청이 있었다.
+달력 바로 밑(`.days`와 `.cal-hint` 사이)에 `.cal-range` 바를 추가해 시작(`#rs`)·
+종료(`#re`) `<input type="date">` 두 칸을 두고, 그 사이 날짜 전체를 한 번에 필터한다.
+- 상태: `rangeStart`/`rangeEnd`(전역, 빈 문자열이면 미적용). `onchange="applyRange()"`가
+  두 입력을 읽어 `rangeStart/End`에 넣고(시작>종료면 자동 스왑) `applyFilter()`를 부른다.
+- `applyFilter`의 날짜 거르기: `if(rangeStart&&r.date<rangeStart)return false;`와
+  `if(rangeEnd&&r.date>rangeEnd)return false;`를 `selDates` 체크 앞에 넣었다. 날짜가
+  `YYYY-MM-DD` 고정폭이라 **사전식 문자열 비교가 곧 날짜 대소 비교**라서 Date 파싱이
+  필요 없다. 기간 필터와 개별 클릭(`selDates`)은 **AND**로 함께 적용된다(둘 다 걸면 교집합).
+  한쪽 칸만 채우면 각각 "그 날짜 이후/이전" 필터가 된다.
+- 표시: 달력에서 범위 안 날짜에 연녹색 `.rng`(`#c6f6d5`) 클래스를 붙인다. CSS 선언
+  순서가 `.rng` → `.sd`(선택, 노랑) → `.td2`(오늘, 파랑)라 **범위색보다 선택/오늘색이
+  이긴다**(같은 `.day.X` 특정도라 선언 순서로 우선순위 결정 — 순서 바꾸지 말 것).
+  `cntbar`엔 초록 칩(📆 시작 ~ 종료 ✕)이 뜨고, ✕(`clearRange()`)가 입력·상태를 비운다.
+- 검증: Playwright로 6/10~6/17 입력 시 목록 8건(6/10~6/17)·달력 10~17 초록 highlight를
+  확인함. 기간 칩과 개별 날짜 칩은 동시에 표시될 수 있다(둘 다 활성 시).
 
 ### 달력 요일/오늘 색상 (v1.4.26)
 `renderCal`에서 각 날짜의 `new Date(calY,calM-1,d).getDay()`로 요일을 계산해

@@ -649,9 +649,14 @@ select{padding:6px 8px;border:1px solid #cbd5e0;border-radius:6px;font-size:12px
 .day.hd::after{content:'';position:absolute;bottom:1px;left:50%;transform:translateX(-50%);width:4px;height:4px;border-radius:50%;background:#3b82f6}
 .day.sat{color:#2563eb}
 .day.sun{color:#e53e3e}
+.day.rng{background:#c6f6d5;color:#22543d}
 .day.sd{background:#f6e05e;color:#744210}.day.sd::after{background:#744210}
 .day.td2{background:#3b82f6;color:#fff;font-weight:700}.day.td2::after{background:#fff}
 .day.em{cursor:default}.day.em:hover{background:none}
+.cal-range{display:flex;align-items:center;gap:4px;padding:6px 10px;border-top:1px solid #edf2f7;font-size:11px;color:#4a5568}
+.cal-range input{flex:1;min-width:0;font-size:11px;padding:2px 4px;border:1px solid #cbd5e0;border-radius:4px}
+.cal-range button{background:#e2e8f0;border:none;border-radius:4px;padding:3px 7px;font-size:10px;cursor:pointer;color:#4a5568}
+.cal-range button:hover{background:#cbd5e0}
 .cal-hint{padding:6px 10px;font-size:10px;color:#a0aec0;text-align:center;border-top:1px solid #edf2f7}
 .mbg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100;align-items:center;justify-content:center}
 .mbg.open{display:flex}
@@ -681,7 +686,7 @@ mark{background:#fef08a;border-radius:2px}
 </head>
 <body>
 <div class="topbar">
-  <h1>📋 인수인계 관리 [JC01]</h1><span style="font-size:10px;color:#64b5f6;background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:4px;font-weight:400;letter-spacing:0.5px">v1.4.44</span>
+  <h1>📋 인수인계 관리 [JC01]</h1><span style="font-size:10px;color:#64b5f6;background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:4px;font-weight:400;letter-spacing:0.5px">v1.4.45</span>
   <span class="badge" id="tbadge">0건</span>
   <span id="netbadge" onclick="showNetInfo()" style="font-size:11px;padding:2px 8px;border-radius:99px;cursor:pointer;color:#f87171" title="확인 중...">●</span>
   <div class="spacer"></div>
@@ -731,7 +736,14 @@ mark{background:#fef08a;border-radius:2px}
       </div>
       <div class="dow"><span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span></div>
       <div class="days" id="days"></div>
-      <div class="cal-hint">날짜를 클릭하면 목록이 그 날짜만 표시됩니다 (여러 날짜 선택 가능)</div>
+      <div class="cal-range">
+        <span>기간</span>
+        <input type="date" id="rs" onchange="applyRange()">
+        <span>~</span>
+        <input type="date" id="re" onchange="applyRange()">
+        <button onclick="clearRange()">해제</button>
+      </div>
+      <div class="cal-hint">날짜 클릭=그 날짜만 표시(여러 개 가능) · 기간 입력=시작~종료 사이 전체 표시</div>
     </div>
     <div class="memo-card">
       <div class="memo-hdr">📝 메모</div>
@@ -823,6 +835,7 @@ const EFG={'#1':'#276749','#2':'#276749','#3':'#276749','#4':'#276749','#5':'#27
 const MY_DONG='JC01';   // 이 빌드가 쓰기 가능한 동 (Go의 myDong과 동일해야 함)
 let all=[],fil=[],calY,calM,ctxId=null,editId=null;
 let selDates=new Set(); // 달력에서 클릭해 선택한 날짜들 (여러 날 선택 가능, 비어있으면 전체)
+let rangeStart='', rangeEnd=''; // 기간 필터(달력 밑 시작~종료 입력). 비어있으면 미적용
 
 function today(){return new Date().toISOString().slice(0,10)}
 
@@ -1044,6 +1057,8 @@ function applyFilter(){
   const cat=document.getElementById('fC').value;
   const dong=document.getElementById('fD').value;
   fil=all.filter(r=>{
+    if(rangeStart && r.date<rangeStart)return false;            // 기간 필터 시작(YYYY-MM-DD 문자열 비교)
+    if(rangeEnd && r.date>rangeEnd)return false;                // 기간 필터 종료
     if(selDates.size>0 && !selDates.has(r.date))return false;   // 달력에서 선택한 날짜(들) 필터
     if(selectedEquips.size>0 && !selectedEquips.has(r.equip))return false;
     if(cat&&r.category!==cat)return false;
@@ -1186,18 +1201,37 @@ function updateBadge(){
   document.getElementById('tbadge').textContent=t+'건';
   const txt=s<t?s+'건 표시 중 (전체 '+t+'건)':'전체 '+t+'건';
   const cb=document.getElementById('cntbar');
+  let chips='';
+  if(rangeStart||rangeEnd){
+    // 기간 필터가 켜져 있으면 초록 칩으로 표시하고 ✕로 해제할 수 있게 한다.
+    const label=(rangeStart||'…')+' ~ '+(rangeEnd||'…');
+    chips+='<span style="background:#38a169;color:#fff;padding:2px 8px;border-radius:99px;font-weight:600;margin-right:6px">📆 '
+      +label+' <span onclick="clearRange()" style="cursor:pointer;margin-left:2px">✕</span></span>';
+  }
   if(selDates.size>0){
     // 날짜 필터가 켜져 있으면 파란 칩으로 표시하고 ✕로 해제할 수 있게 한다.
     // 선택한 날짜가 3개 이하면 다 나열하고, 많으면 개수만 보여준다.
     const sorted=[...selDates].sort();
     const label=sorted.length<=3?sorted.join(', '):sorted.length+'일 선택';
-    cb.innerHTML='<span style="background:#3b82f6;color:#fff;padding:2px 8px;border-radius:99px;font-weight:600;margin-right:6px" title="'+sorted.join(', ')+'">📅 '
-      +label+' <span onclick="clearDateFilter()" style="cursor:pointer;margin-left:2px">✕</span></span>'+txt;
-  }else{
-    cb.textContent=txt;
+    chips+='<span style="background:#3b82f6;color:#fff;padding:2px 8px;border-radius:99px;font-weight:600;margin-right:6px" title="'+sorted.join(', ')+'">📅 '
+      +label+' <span onclick="clearDateFilter()" style="cursor:pointer;margin-left:2px">✕</span></span>';
   }
+  if(chips){cb.innerHTML=chips+txt;}else{cb.textContent=txt;}
 }
 function clearDateFilter(){selDates.clear();applyFilter();}
+// 기간 필터: 달력 밑 시작(#rs)~종료(#re) 입력을 읽어 그 사이 날짜만 표시.
+// 시작만/종료만 넣어도 각각 이후/이전으로 동작. 시작>종료면 자동으로 뒤바꿔 처리.
+function applyRange(){
+  let a=document.getElementById('rs').value, b=document.getElementById('re').value;
+  if(a&&b&&a>b){const t=a;a=b;b=t;document.getElementById('rs').value=a;document.getElementById('re').value=b;}
+  rangeStart=a; rangeEnd=b;
+  applyFilter();
+}
+function clearRange(){
+  rangeStart=''; rangeEnd='';
+  document.getElementById('rs').value=''; document.getElementById('re').value='';
+  applyFilter();
+}
 
 function renderCal(){
   document.getElementById('ctitle').textContent=calY+'년 '+calM+'월';
@@ -1210,7 +1244,8 @@ function renderCal(){
     const s=calY+'-'+String(calM).padStart(2,'0')+'-'+String(d).padStart(2,'0');
     const dow=new Date(calY,calM-1,d).getDay();
     const wd=dow===0?'sun':(dow===6?'sat':'');
-    const cls=['day',wd,s===td?'td2':'',ds.has(s)?'hd':'',selDates.has(s)?'sd':''].filter(Boolean).join(' ');
+    const inRng=(rangeStart||rangeEnd)&&(!rangeStart||s>=rangeStart)&&(!rangeEnd||s<=rangeEnd);
+    const cls=['day',wd,inRng?'rng':'',s===td?'td2':'',ds.has(s)?'hd':'',selDates.has(s)?'sd':''].filter(Boolean).join(' ');
     h+='<div class="'+cls+'" onclick="selDate2(\''+s+'\')">'+d+'</div>';
   }
   document.getElementById('days').innerHTML=h;

@@ -29,7 +29,7 @@ goapp/main_jc02_v142.go.tmp    JC02 소스 (정본)
 
 ## 🔨 빌드 & 버전
 
-현재 버전: **v1.4.44**
+현재 버전: **v1.4.45**
 
 ```bash
 export GOPATH=$HOME/go && export PATH=$PATH:/usr/local/go/bin
@@ -37,13 +37,13 @@ cd goapp
 # JC01 (JC02는 파일명만 jc02로)
 cp main_jc01_v142.go.tmp main.go && gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.44.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.45.exe .
 rm -f main.go
 ```
 
 - `-ldflags`에 **`-s -w` 넣지 말 것** (백신 오탐 원인).
 - **빌드해서 전달할 때마다 버전을 올린다.** 소스 2개 HTML의 `v1.4.X` 문자열
-  (각 파일 680번째 줄)과 이 문서·`HANDOFF.md`의 버전도 함께 바꾼다.
+  (각 파일 689번째 줄)과 이 문서·`HANDOFF.md`의 버전도 함께 바꾼다.
 - `go vet`는 로컬(리눅스)에서 `syscall.NewLazyDLL`, `buildHTML`의 Sprintf(`%`)를
   오탐한다 — 둘 다 예전부터 있던 노이즈. `GOOS=windows` 빌드가 통과하면 정상.
 
@@ -54,7 +54,7 @@ rm -f main.go
 확인은 `diff main_jc01_v142.go.tmp main_jc02_v142.go.tmp` 한 줄이면 된다 —
 두 파일을 각각 Read 하지 말 것.
 
-다른 곳 (JC01 → JC02 기준 라인번호, v1.4.44 시점):
+다른 곳 (JC01 → JC02 기준 라인번호, v1.4.45 시점):
 | 줄 | JC01 | JC02 |
 |----|------|------|
 | 307 | 주석 "JC01은 100000번대" | "JC02는 200000번대" |
@@ -63,13 +63,13 @@ rm -f main.go
 | 329 | `const myDong = "JC01"` | `= "JC02"` (Go 쓰기권한 동) |
 | 470 | `...\1동\Pending Item&지속관리` | `...\CELL_MEE_..\P10 Cell Sorter` (파츠폴더) |
 | 481 | `"JC_1 Sorter 필요 Parts"` | `"JC_2 Sorter 필요 Parts2"` (파츠파일명) |
-| 684 | `[JC01]` (제목) | `[JC02]` |
-| 697-698 | `JC01 selected` | `JC02 selected` |
-| 751 | `<option value="JC02">` | `<option value="JC02" selected>` |
-| 823 | `const MY_DONG='JC01'` | `='JC02'` (JS 쓰기권한 동) |
-| 831 | `memoSave('hk_memo',…)` | `memoSave('hk_memo_jc02',…)` |
-| 837 | `memoLoad('hk_memo')` | `memoLoad('hk_memo_jc02')` |
-| 987 | `fD.value='JC01'` | `='JC02'` |
+| 689 | `[JC01]` (제목) | `[JC02]` |
+| 702-703 | `JC01 selected` | `JC02 selected` |
+| 763 | `<option value="JC02">` | `<option value="JC02" selected>` |
+| 835 | `const MY_DONG='JC01'` | `='JC02'` (JS 쓰기권한 동) |
+| 844 | `memoSave('hk_memo',…)` | `memoSave('hk_memo_jc02',…)` |
+| 850 | `memoLoad('hk_memo')` | `memoLoad('hk_memo_jc02')` |
+| 1000 | `fD.value='JC01'` | `='JC02'` |
 
 > 참고: PM 체크리스트 저장 키는 `'hk_pm_'+MY_DONG`으로 **양쪽 파일 동일**(변수라 diff 아님).
 
@@ -172,6 +172,16 @@ type Record struct {
   유지한다 (v1.4.44)** — 예전엔 `selDates.clear()`로 필터를 풀었으나 사용자가 새 항목
   추가 시 필터가 풀린다고 불편을 호소해 제거함. `save`는 달력만 저장 항목의 달로
   옮기고(`calY/calM`) 필터는 그대로 둔다. 다시 `selDates.clear()`를 넣지 말 것.
+- **기간(범위) 날짜 필터 (v1.4.45)** — 달력 바로 밑 `.cal-range` 바에 시작(`#rs`)·
+  종료(`#re`) `<input type="date">` 두 칸을 뒀다. 예전엔 6/10~6/17을 보려면 날짜를
+  하나씩 다 클릭해야 했는데, 이제 시작·종료만 넣으면 그 사이 전체가 표시된다. 상태는
+  `rangeStart`/`rangeEnd`(빈 문자열이면 미적용), `applyRange()`가 입력을 읽어(시작>종료면
+  자동 스왑) `applyFilter`를 부른다. `applyFilter`의 날짜 거르기는
+  `rangeStart&&r.date<rangeStart` / `rangeEnd&&r.date>rangeEnd`(날짜가 `YYYY-MM-DD`라
+  **문자열 비교로 대소 판정 가능**) — `selDates`(개별 클릭) 필터와 **AND로 함께** 걸린다.
+  한쪽만 넣으면 이후/이전 필터로 동작. 달력엔 범위 안 날짜에 연녹색 `.rng` 클래스가
+  붙고(단, `.sd`/`.td2`가 CSS 선언 순서상 뒤라 선택/오늘 표시가 이김), `cntbar`엔 초록
+  칩(📆 시작~종료 ✕`clearRange()`)이 뜬다. `clearRange()`가 입력·상태를 비운다.
 - **메모 위치 (v1.4.28)** — 메모 카드(`.memo-card`)는 예전엔 표와 달력 사이 별도
   칼럼이었으나, 이제 `.right`(달력) 칼럼 안 **달력 밑**으로 옮김. `.memo-card`는
   `flex:1`로 달력 아래 남은 높이를 채운다. 표(`.left`)가 그만큼 넓어짐.

@@ -29,7 +29,7 @@ goapp/main_jc02_v142.go.tmp    JC02 소스 (정본)
 
 ## 🔨 빌드 & 버전
 
-현재 버전: **v1.4.50**
+현재 버전: **v1.4.51**
 
 ```bash
 export GOPATH=$HOME/go && export PATH=$PATH:/usr/local/go/bin
@@ -37,13 +37,13 @@ cd goapp
 # JC01 (JC02는 파일명만 jc02로)
 cp main_jc01_v142.go.tmp main.go && gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.50.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.51.exe .
 rm -f main.go
 ```
 
 - `-ldflags`에 **`-s -w` 넣지 말 것** (백신 오탐 원인).
 - **빌드해서 전달할 때마다 버전을 올린다.** 소스 2개 HTML의 `v1.4.X` 문자열
-  (각 파일 693번째 줄)과 이 문서·`HANDOFF.md`의 버전도 함께 바꾼다.
+  (각 파일 690번째 줄)과 이 문서·`HANDOFF.md`의 버전도 함께 바꾼다.
 - `go vet`는 로컬(리눅스)에서 `syscall.NewLazyDLL`, `buildHTML`의 Sprintf(`%`)를
   오탐한다 — 둘 다 예전부터 있던 노이즈. `GOOS=windows` 빌드가 통과하면 정상.
 
@@ -54,7 +54,7 @@ rm -f main.go
 확인은 `diff main_jc01_v142.go.tmp main_jc02_v142.go.tmp` 한 줄이면 된다 —
 두 파일을 각각 Read 하지 말 것.
 
-다른 곳 (JC01 → JC02 기준 라인번호, v1.4.50 시점):
+다른 곳 (JC01 → JC02 기준 라인번호, v1.4.51 시점):
 | 줄 | JC01 | JC02 |
 |----|------|------|
 | 307 | 주석 "JC01은 100000번대" | "JC02는 200000번대" |
@@ -63,13 +63,13 @@ rm -f main.go
 | 329 | `const myDong = "JC01"` | `= "JC02"` (Go 쓰기권한 동) |
 | 470 | `...\1동\Pending Item&지속관리` | `...\CELL_MEE_..\P10 Cell Sorter` (파츠폴더) |
 | 481 | `"JC_1 Sorter 필요 Parts"` | `"JC_2 Sorter 필요 Parts2"` (파츠파일명) |
-| 693 | `[JC01]` (제목) | `[JC02]` |
-| 706-707 | `JC01 selected` | `JC02 selected` |
-| 766 | `<option value="JC02">` | `<option value="JC02" selected>` |
-| 838 | `const MY_DONG='JC01'` | `='JC02'` (JS 쓰기권한 동) |
-| 847 | `memoSave('hk_memo',…)` | `memoSave('hk_memo_jc02',…)` |
-| 853 | `memoLoad('hk_memo')` | `memoLoad('hk_memo_jc02')` |
-| 1003 | `fD.value='JC01'` | `='JC02'` |
+| 690 | `[JC01]` (제목) | `[JC02]` |
+| 703-704 | `JC01 selected` | `JC02 selected` |
+| 763 | `<option value="JC02">` | `<option value="JC02" selected>` |
+| 835 | `const MY_DONG='JC01'` | `='JC02'` (JS 쓰기권한 동) |
+| 844 | `memoSave('hk_memo',…)` | `memoSave('hk_memo_jc02',…)` |
+| 850 | `memoLoad('hk_memo')` | `memoLoad('hk_memo_jc02')` |
+| 1002 | `fD.value='JC01'` | `='JC02'` |
 
 > 참고: PM 체크리스트 저장 키는 `'hk_pm_'+MY_DONG`으로 **양쪽 파일 동일**(변수라 diff 아님).
 
@@ -214,14 +214,25 @@ type Record struct {
   `<select id="fc">` ③ 배지 색 CSS `.c<이름>`(이름에 공백 없이). 하나만 빠지면 필터/입력/
   색 중 하나가 어긋난다.
 - **설비별 PM 체크리스트 (v1.4.31, 상시 표시 표)** — 메인 목록과 달력 **사이**의
-  독립 칼럼 `.pm-col`. 4칸 그리드(`.pm-grid`: 설비|내용|설비|내용)로, 이 동의 필터
-  설비(`EQUIP_BY_DONG[MY_DONG]`)를 2개씩 배치(왼쪽 절반=좌측 쌍, 오른쪽 절반=우측
-  쌍). 내용칸은 `contenteditable` div(`.pm-cell.pm-text`), 입력마다 `savePmCell`이
+  독립 칼럼 `.pm-col`. 이 동의 필터 설비(`EQUIP_BY_DONG[MY_DONG]`)를 반으로 나눠
+  좌/우로 배치. 내용칸은 `contenteditable` div(`.pm-cell.pm-text`), 입력마다 `savePmCell`이
   `pmData[설비]=innerText` 후 저장. 메모처럼 로컬 파일 저장이라 껐다 켜도 유지.
   키 `'hk_pm_'+MY_DONG`(동별 파일), 값 `{설비:내용}` JSON(`pmData`). `renderPmTable`이
   시작 시 표를 그린다(그 뒤엔 셀 편집만, 재렌더 없음 → 포커스 유지). `localStorage`로
   되돌리지 말 것(메모와 동일 — opaque origin 유실). v1.4.30의 드롭다운 방식은 폐기.
-  **내용 칸 폭 15% 축소 (v1.4.40, v1.4.41에서 배치 버그 수정) → v1.4.47에서 원복** —
+  **⚠️ 구조 변경 (v1.4.51): 4칸 단일 그리드 → 좌/우 독립 2칸 그리드 2개** — 예전엔
+  `.pm-grid`가 `설비|내용|설비|내용` **한 개의 4칸 그리드**였다. 그러면 CSS Grid 행 높이가
+  "그 행의 좌·우 설비 중 더 높은 쪽"에 맞춰져서, 한 설비 내용이 길면 **옆(같은 행) 설비칸이
+  덩달아 세로로 늘어나** 거대한 빈 칸이 생겼다(사용자 스크린샷: #61이 길어 옆 #5가 통째로
+  늘어남). 이제 `.pm-grid`는 `display:flex`(가로) 스크롤 컨테이너이고, 그 안에 좌/우 각각
+  독립된 `.pm-half`(`display:grid;grid-template-columns:max-content 1fr`, 설비|내용 2칸)를
+  둔다. 두 반쪽이 **서로 다른 그리드**라 한 설비 행 높이가 옆 반쪽에 영향 없음(행 높이
+  커플링 제거). `renderPmTable`은 좌 설비들→`L`, 우 설비들→`R` 문자열로 각각 만들어
+  `<div class="pm-half">L</div><div class="pm-half">R</div>` 주입. 트레이드오프: 좌·우가 더는
+  행 단위로 정렬되지 않는다(한쪽이 길면 다른 쪽은 그 옆에서 독립적으로 흐름) — 의도된 동작.
+  스크롤은 여전히 `.pm-grid`의 `overflow-y:auto` **1개**(v1.4.49). 아래 4칸 그리드 시절의
+  nth-child·트랙 관련 문단은 **폐기된 구조에 대한 역사 기록**이니, 지금 구조엔 적용 안 됨.
+  **내용 칸 폭 15% 축소 (v1.4.40, v1.4.41에서 배치 버그 수정) → v1.4.47에서 원복, v1.4.51에서 구조 폐기** —
   ⚠️ 아래 축소는 **v1.4.47에서 되돌렸다**. 현재 `grid-template-columns`는
   `max-content 1fr max-content 1fr`(4트랙)이고 내용 칸이 헤더 폭까지 꽉 찬다.
   아래 문단은 auto-flow 버그 지식(트랙 수≠셀 수 주의) 보존용이며, 트랙을 다시

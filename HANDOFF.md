@@ -1,6 +1,6 @@
 # 인수인계 관리 프로그램 - 작업 인수인계 문서
 
-## 현재 버전: v1.4.50
+## 현재 버전: v1.4.51
 
 Go + WebView2 기반 Windows 데스크톱 앱. JC01(1동)/JC02(2동) 두 변형이 거의 동일한
 소스 구조를 공유하며, 각각 별도의 .exe로 빌드됨.
@@ -38,13 +38,13 @@ cd goapp
 cp main_jc01_v142.go.tmp main.go
 gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.50.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.51.exe .
 
 # JC02
 cp main_jc02_v142.go.tmp main.go
 gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC02_v1.4.50.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC02_v1.4.51.exe .
 ```
 
 **주의**: `-ldflags`에 `-s -w`를 넣지 마세요. 심볼 제거(압축)가 백신 오탐의
@@ -428,15 +428,15 @@ function scheduleMidnight(){
   남겨뒀다(미사용·무해). Playwright로 안내문 제거·메모 높이 증가(768px 창에서 460→501px,
   560px 창에서 min-height 덕에 293px 유지) 확인.
 
-### 설비별 PM 체크리스트 (v1.4.30 도입, v1.4.31 상시 표 방식으로 변경, v1.4.40/41 폭 조정 후 v1.4.47 원복, v1.4.42 셀 스크롤 후 v1.4.49 전체 스크롤로 통일)
+### 설비별 PM 체크리스트 (v1.4.30 도입, v1.4.31 상시 표, v1.4.40/41 폭 조정 후 v1.4.47 원복, v1.4.42 셀 스크롤 후 v1.4.49 전체 스크롤, v1.4.51 좌/우 독립 그리드)
 설비마다 PM(예방정비) 시 할 일을 적어두는 표. 메모처럼 **로컬 파일 저장**이라 껐다
 켜도 유지된다.
-- **위치/형태 (v1.4.31)**: 메인 목록(`.left`)과 달력(`.right`) **사이**의 독립 칼럼
-  `.pm-col`. 이미지(인계 표)처럼 **4칸 그리드**(`.pm-grid`: 설비|내용|설비|내용)로
-  설비를 2개씩 한 줄에 배치한다. 설비 목록은 이 동의 필터 설비
-  (`EQUIP_BY_DONG[MY_DONG]`, '공통' 포함)를 반으로 나눠 **왼쪽 절반=좌측 쌍,
-  오른쪽 절반=우측 쌍**(row r: `list[r]` / `list[r+half]`). 내용칸은 `contenteditable`
-  div(`.pm-cell.pm-text`)로 상시 편집 가능. 설비 개수가 홀수면 마지막 우측칸은 빈칸.
+- **위치/형태 (v1.4.31, 구조는 v1.4.51에서 변경)**: 메인 목록(`.left`)과 달력(`.right`)
+  **사이**의 독립 칼럼 `.pm-col`. 이 동의 필터 설비(`EQUIP_BY_DONG[MY_DONG]`, '공통' 포함)를
+  반으로 나눠 좌/우로 배치한다. 내용칸은 `contenteditable` div(`.pm-cell.pm-text`)로 상시
+  편집 가능. **v1.4.51 전에는** `.pm-grid`가 `설비|내용|설비|내용` **한 개의 4칸 그리드**라
+  좌·우 설비가 같은 grid 행을 공유했다(row r: `list[r]` / `list[r+half]`). 아래
+  "행 높이 커플링 제거" 항목대로 v1.4.51에서 좌/우 **독립 2칸 그리드 2개**로 바꿨다.
 - **저장**: `memoSave/memoLoad` 재활용, 키 `'hk_pm_'+MY_DONG`(동별 파일
   `hk_pm_JC01.txt` / `hk_pm_JC02.txt`), 값은 `{"#1":"...","ATW#61":"..."}` JSON 한
   덩어리(`pmData`). 셀 편집 때마다 `savePmCell(this)`가 `pmData[설비]=el.innerText`
@@ -513,6 +513,28 @@ CSS Grid 행 높이는 그 행에서 가장 높은 셀에 맞춰지므로, 한 �
 결과이자 사용자가 택한 동작이다. 다시 셀별 `overflow-y:auto`로 되돌리지 말 것.
 검증: Playwright로 내용 셀들의 `overflow-y=visible`(개별 스크롤 없음), `.pm-grid`의
 `overflow-y=auto`(전체 스크롤 1개, scrollHeight>clientHeight) 확인.
+
+**행 높이 커플링 제거: 4칸 단일 그리드 → 좌/우 독립 2칸 그리드 2개 (v1.4.51)**:
+위 v1.4.49로 셀 캡을 없앤 뒤, 한 설비(예: #61)에 줄을 많이 넣으니 **같은 grid 행을
+공유하던 옆 설비(#5)까지 통째로 세로로 늘어나** 거대한 빈 칸이 생기는 버그가 보고됐다
+(사용자 스크린샷). 원인: `.pm-grid`가 `설비|내용|설비|내용` **한 개의 4칸 그리드**라,
+CSS Grid에서 한 행의 높이는 그 행에 속한 모든 셀 중 가장 높은 것에 맞춰진다 → 좌측 #5와
+우측 #61이 같은 행이면 #61이 길 때 #5도 그 높이로 강제된다("호기 행 크기 고정"처럼 보임).
+해결: `.pm-grid`를 `display:flex`(가로) **스크롤 컨테이너**로 바꾸고, 그 안에 좌·우 각각
+독립된 `.pm-half`를 둔다.
+- `.pm-grid{flex:1;overflow-y:auto;display:flex;align-items:flex-start;gap:1px;background:#e2e8f0;padding:1px}`
+- `.pm-half{flex:1;min-width:0;display:grid;grid-template-columns:max-content 1fr;align-content:start;gap:1px;background:#e2e8f0}`
+- `renderPmTable`: 좌측 설비들(`list[0..half-1]`)을 `L`, 우측(`list[half..end]`)을 `R`
+  문자열로 만들어 각 앞에 헤더(`설비|내용`)를 붙이고
+  `<div class="pm-half">L</div><div class="pm-half">R</div>`를 주입. 각 `.pm-half`는
+  2칸 그리드라 설비당 2셀(이름+내용)이 자연스럽게 흐른다(4칸 시절의 `nth-child` 열
+  고정은 더 이상 필요 없어 삭제). 홀수면 우측 `.pm-half`가 한 설비 적게 끝난다(빈 필러 불필요).
+두 반쪽이 **서로 다른 grid**라 한쪽 설비 내용이 길어도 그 설비 행만 커지고 다른 반쪽엔
+영향이 없다. 스크롤은 여전히 `.pm-grid` 1개(v1.4.49 유지). **트레이드오프**: 좌·우가 더는
+행 단위로 정렬되지 않는다(한쪽이 길면 다른 쪽은 그 옆에서 자기 높이대로 독립적으로 흐름) —
+행 높이 커플링을 없앤 결과이자 사용자가 요청한 동작. 검증: Playwright로 #61에 25줄 넣어도
+#5 이름칸 높이 46px(자기 내용 높이)로 유지, #61 이름칸 387px, `.pm-grid` 전체 스크롤 1개
+확인. **다시 4칸 단일 그리드로 되돌리지 말 것 — 행 높이 커플링 버그 재발.**
 
 ---
 

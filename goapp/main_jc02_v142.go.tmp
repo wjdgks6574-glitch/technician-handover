@@ -624,11 +624,8 @@ select{padding:6px 8px;border:1px solid #cbd5e0;border-radius:6px;font-size:12px
 .pm-col{display:flex;flex-direction:column;flex:0 0 360px;width:360px;background:#fff;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden}
 .pm-hdr{background:#1e3a5f;color:#fff;padding:8px 12px;font-size:12px;font-weight:600;display:flex;align-items:center;gap:8px;flex-shrink:0}
 .pm-saved{font-size:10px;font-weight:400;color:#bee3f8;margin-left:auto}
-.pm-grid{flex:1;overflow-y:auto;display:grid;grid-template-columns:max-content 1fr max-content 1fr;align-content:start;gap:1px;background:#e2e8f0;padding:1px}
-.pm-grid>*:nth-child(4n+1){grid-column:1}
-.pm-grid>*:nth-child(4n+2){grid-column:2}
-.pm-grid>*:nth-child(4n+3){grid-column:3}
-.pm-grid>*:nth-child(4n){grid-column:4}
+.pm-grid{flex:1;overflow-y:auto;display:flex;align-items:flex-start;gap:1px;background:#e2e8f0;padding:1px}
+.pm-half{flex:1;min-width:0;display:grid;grid-template-columns:max-content 1fr;align-content:start;gap:1px;background:#e2e8f0}
 .pm-cell{background:#fff;font-size:12px;padding:6px 8px;line-height:1.5;min-height:34px;overflow-wrap:anywhere;white-space:pre-wrap}
 .pm-cell.pm-h{background:#1e3a5f;color:#fff;font-weight:600;text-align:center;position:sticky;top:0;z-index:1;min-height:0;padding:5px}
 .pm-cell.pm-name{background:#2c7a7b;color:#fff;font-weight:700;text-align:center;white-space:nowrap;padding:4px 7px;display:flex;align-items:center;justify-content:center}
@@ -690,7 +687,7 @@ mark{background:#fef08a;border-radius:2px}
 </head>
 <body>
 <div class="topbar">
-  <h1>📋 인수인계 관리 [JC02]</h1><span style="font-size:10px;color:#64b5f6;background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:4px;font-weight:400;letter-spacing:0.5px">v1.4.50</span>
+  <h1>📋 인수인계 관리 [JC02]</h1><span style="font-size:10px;color:#64b5f6;background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:4px;font-weight:400;letter-spacing:0.5px">v1.4.51</span>
   <span class="badge" id="tbadge">0건</span>
   <span id="netbadge" onclick="showNetInfo()" style="font-size:11px;padding:2px 8px;border-radius:99px;cursor:pointer;color:#f87171" title="확인 중...">●</span>
   <div class="spacer"></div>
@@ -859,21 +856,23 @@ async function loadMemo(){
 // 메모와 똑같이 로컬 파일에 저장(껐다 켜도 유지). memoSave/memoLoad를 재활용하되
 // 키를 'hk_pm_'+MY_DONG으로 해서 동별 파일이 갈린다(JC01=hk_pm_JC01.txt,
 // JC02=hk_pm_JC02.txt). 값은 {설비명:내용} JSON 한 덩어리. 설비 목록은 이 동의
-// 필터 설비(EQUIP_BY_DONG[MY_DONG])를 4칸(설비|내용|설비|내용) 그리드로 배치:
-// 왼쪽 절반은 좌측 쌍, 오른쪽 절반은 우측 쌍(이미지의 표 구조와 동일).
+// 필터 설비(EQUIP_BY_DONG[MY_DONG])를 좌/우 두 개의 독립된 2칸(설비|내용) 그리드
+// (.pm-half)로 나눠 배치한다. 두 반쪽이 서로 다른 그리드라, 한 설비 내용이 길어도
+// 그 설비의 행만 커지고 옆(다른 반쪽) 설비 행 높이엔 영향이 없다(행 높이 커플링 제거).
 let pmData={};
 function pmCells(eq){
-  if(!eq) return '<div class="pm-cell pm-name pm-empty"></div><div class="pm-cell pm-empty"></div>';
+  if(!eq) return '';
   return '<div class="pm-cell pm-name">'+esc(eq)+'</div>'
     +'<div class="pm-cell pm-text" contenteditable="true" data-eq="'+esc(eq)+'" oninput="savePmCell(this)">'+esc(pmData[eq]||'')+'</div>';
 }
 function renderPmTable(){
   const list=EQUIP_BY_DONG[MY_DONG]||[];
   const half=Math.ceil(list.length/2);
-  let h='<div class="pm-cell pm-h">설비</div><div class="pm-cell pm-h">내용</div>'
-       +'<div class="pm-cell pm-h">설비</div><div class="pm-cell pm-h">내용</div>';
-  for(let r=0;r<half;r++){ h+=pmCells(list[r]); h+=pmCells(list[r+half]); }
-  document.getElementById('pm-grid').innerHTML=h;
+  const hdr='<div class="pm-cell pm-h">설비</div><div class="pm-cell pm-h">내용</div>';
+  let L=hdr, R=hdr;
+  for(let r=0;r<half;r++) L+=pmCells(list[r]);
+  for(let r=half;r<list.length;r++) R+=pmCells(list[r]);
+  document.getElementById('pm-grid').innerHTML='<div class="pm-half">'+L+'</div><div class="pm-half">'+R+'</div>';
 }
 function savePmCell(el){
   const eq=el.getAttribute('data-eq');

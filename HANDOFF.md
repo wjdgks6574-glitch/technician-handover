@@ -1,6 +1,6 @@
 # 인수인계 관리 프로그램 - 작업 인수인계 문서
 
-## 현재 버전: v1.4.49
+## 현재 버전: v1.4.50
 
 Go + WebView2 기반 Windows 데스크톱 앱. JC01(1동)/JC02(2동) 두 변형이 거의 동일한
 소스 구조를 공유하며, 각각 별도의 .exe로 빌드됨.
@@ -38,13 +38,13 @@ cd goapp
 cp main_jc01_v142.go.tmp main.go
 gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.49.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.50.exe .
 
 # JC02
 cp main_jc02_v142.go.tmp main.go
 gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC02_v1.4.49.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC02_v1.4.50.exe .
 ```
 
 **주의**: `-ldflags`에 `-s -w`를 넣지 마세요. 심볼 제거(압축)가 백신 오탐의
@@ -417,6 +417,16 @@ function scheduleMidnight(){
   fire-and-forget으로 파일에 쓰고(입력마다), `loadMemo`는 시작 시 async로 읽는다.
   **다시 `localStorage`로 되돌리지 말 것 — 유실 재발.** (`DataPath` 고정 자체는
   WebView2 캐시 등을 우리 폴더에 모으는 용도로 그대로 유지.)
+- **달력 밑 안내문 제거 + 메모 세로 확대 (v1.4.50)**: 달력 카드 맨 밑에 있던 안내문
+  `.cal-hint`("날짜 클릭=그 날짜만 표시(여러 개 가능) · 기간 입력=시작~종료 사이 전체
+  표시")를 사용자 요청으로 HTML에서 제거했다(달력 카드가 그만큼 짧아짐). 더불어 메모를
+  더 길게 해달라는 요청에 따라 `.memo-card`의 `min-height`를 `120px`→`260px`로 올렸다.
+  메모 카드는 원래도 `.right` 칼럼에서 `flex:1`이라 달력 밑 남은 세로를 전부 채우므로,
+  창이 충분히 크면(앱은 시작 시 최대화) 메모가 이미 달력보다 훨씬 크다. min-height
+  상향은 창이 짧을 때(비최대화/저해상도) 메모가 쪼그라들지 않도록 바닥값을 높인 것.
+  안내문 제거로 확보된 높이도 `flex:1`인 메모가 가져간다. `.cal-hint` CSS 규칙 자체는
+  남겨뒀다(미사용·무해). Playwright로 안내문 제거·메모 높이 증가(768px 창에서 460→501px,
+  560px 창에서 min-height 덕에 293px 유지) 확인.
 
 ### 설비별 PM 체크리스트 (v1.4.30 도입, v1.4.31 상시 표 방식으로 변경, v1.4.40/41 폭 조정 후 v1.4.47 원복, v1.4.42 셀 스크롤 후 v1.4.49 전체 스크롤로 통일)
 설비마다 PM(예방정비) 시 할 일을 적어두는 표. 메모처럼 **로컬 파일 저장**이라 껐다

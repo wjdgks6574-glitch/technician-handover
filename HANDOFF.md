@@ -1,6 +1,6 @@
 # 인수인계 관리 프로그램 - 작업 인수인계 문서
 
-## 현재 버전: v1.4.48
+## 현재 버전: v1.4.49
 
 Go + WebView2 기반 Windows 데스크톱 앱. JC01(1동)/JC02(2동) 두 변형이 거의 동일한
 소스 구조를 공유하며, 각각 별도의 .exe로 빌드됨.
@@ -38,13 +38,13 @@ cd goapp
 cp main_jc01_v142.go.tmp main.go
 gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.48.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.49.exe .
 
 # JC02
 cp main_jc02_v142.go.tmp main.go
 gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC02_v1.4.48.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC02_v1.4.49.exe .
 ```
 
 **주의**: `-ldflags`에 `-s -w`를 넣지 마세요. 심볼 제거(압축)가 백신 오탐의
@@ -418,7 +418,7 @@ function scheduleMidnight(){
   **다시 `localStorage`로 되돌리지 말 것 — 유실 재발.** (`DataPath` 고정 자체는
   WebView2 캐시 등을 우리 폴더에 모으는 용도로 그대로 유지.)
 
-### 설비별 PM 체크리스트 (v1.4.30 도입, v1.4.31 상시 표 방식으로 변경, v1.4.40/41 폭 조정 후 v1.4.47 원복, v1.4.42 셀 스크롤)
+### 설비별 PM 체크리스트 (v1.4.30 도입, v1.4.31 상시 표 방식으로 변경, v1.4.40/41 폭 조정 후 v1.4.47 원복, v1.4.42 셀 스크롤 후 v1.4.49 전체 스크롤로 통일)
 설비마다 PM(예방정비) 시 할 일을 적어두는 표. 메모처럼 **로컬 파일 저장**이라 껐다
 켜도 유지된다.
 - **위치/형태 (v1.4.31)**: 메인 목록(`.left`)과 달력(`.right`) **사이**의 독립 칼럼
@@ -487,17 +487,22 @@ v1.4.41에서 "의도된 동작"이라던 그 회색 여백을 사용자가 원�
 전부 `flex:1`인 `.left`(메인 목록/인수인계 내용)가 흡수한다. `.pm-col`을 다시
 `flex:1`로 되돌리지 말 것 — 메인 목록이 좁아지는 예전 문제로 되돌아간다.
 
-**내용 칸 세로 최대높이 + 셀 내부 스크롤 (v1.4.42)**: 한 셀에 내용을 길게
-입력하면(사용자 스크린샷: `#`+`d` 40여 개, 또는 여러 줄) 그 내용 칸이 세로로
-무한정 늘어나면서, 같은 행의 설비 이름칸(teal)까지 함께 커져 표 전체가 깨져
-보였다. CSS Grid에서 한 행의 높이는 그 행에 속한 셀들 중 **가장 높은 셀**에
-맞춰지기 때문이다. `.pm-cell.pm-text`에 `max-height:120px;overflow-y:auto`를
-줘서, 내용이 120px를 넘으면 그 칸 안에서만 세로 스크롤되고 칸(=행) 높이는
-120px에서 멈추게 했다. 이러면 옆 설비칸도 덩달아 안 커진다. 참고로 `.pm-grid`
-자체에도 `overflow-y:auto`가 있지만 그건 **표 전체**를 위아래로 스크롤하는
-것이고, 이번 것은 **개별 내용 셀 안**의 스크롤이라 서로 다른 층위다. 이 캡을
-없애거나 `overflow`를 지우면 행 깨짐이 재발하니 유지할 것. (높이를 바꾸려면
-`max-height` 값만 조정하면 된다 — 120px는 10px 폰트 기준 약 7~8줄.)
+**내용 칸 셀 내부 스크롤 (v1.4.42) → 전체 표 스크롤 1개로 통일 (v1.4.49)**:
+v1.4.42에선 한 셀에 내용을 길게 입력하면(스크린샷: `#`+`d` 40여 개, 또는 여러 줄)
+그 내용 칸이 세로로 무한정 늘어나 같은 행의 설비 이름칸(teal)까지 커져 표가 깨져
+보이던 문제를 막으려고, `.pm-cell.pm-text`에 `max-height:120px;overflow-y:auto`를
+줘서 내용이 120px를 넘으면 **그 칸 안에서만** 스크롤되게 했다(행 높이를 120px에
+캡). 그런데 이러면 내용이 긴 설비마다 셀에 스크롤바가 따로 생겨서 "설비 하나씩
+스크롤을 내려야 본다"는 불편이 생겼다(사용자 스크린샷: #32/#41/#51 각 칸에 작은
+스크롤바). **v1.4.49에서 `.pm-cell.pm-text`의 `max-height:120px;overflow-y:auto`를
+제거**해, 셀은 내용 높이만큼 자라고 스크롤은 `.pm-grid{flex:1;overflow-y:auto}`가
+제공하는 **표 전체 스크롤바 1개**만 남겼다. 이제 PM 리스트 전체를 하나의 스크롤로
+위아래로 본다(사용자 요청: "개별 설비가 아닌 전체에 대한 스크롤 1개"). 트레이드오프:
+CSS Grid 행 높이는 그 행에서 가장 높은 셀에 맞춰지므로, 한 행에 긴 셀이 있으면 그
+행(옆 설비 이름칸 포함)이 그만큼 세로로 길어진다 — 이는 전체 스크롤 방식의 당연한
+결과이자 사용자가 택한 동작이다. 다시 셀별 `overflow-y:auto`로 되돌리지 말 것.
+검증: Playwright로 내용 셀들의 `overflow-y=visible`(개별 스크롤 없음), `.pm-grid`의
+`overflow-y=auto`(전체 스크롤 1개, scrollHeight>clientHeight) 확인.
 
 ---
 

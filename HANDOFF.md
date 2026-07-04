@@ -1,6 +1,6 @@
 # 인수인계 관리 프로그램 - 작업 인수인계 문서
 
-## 현재 버전: v1.4.43
+## 현재 버전: v1.4.44
 
 Go + WebView2 기반 Windows 데스크톱 앱. JC01(1동)/JC02(2동) 두 변형이 거의 동일한
 소스 구조를 공유하며, 각각 별도의 .exe로 빌드됨.
@@ -38,13 +38,13 @@ cd goapp
 cp main_jc01_v142.go.tmp main.go
 gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.43.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.44.exe .
 
 # JC02
 cp main_jc02_v142.go.tmp main.go
 gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC02_v1.4.43.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC02_v1.4.44.exe .
 ```
 
 **주의**: `-ldflags`에 `-s -w`를 넣지 마세요. 심볼 제거(압축)가 백신 오탐의
@@ -257,7 +257,17 @@ JS `renderDetail`. **상세 패널을 되살리지 말 것** — 날짜 열람�
 - `updateBadge`의 칩: 선택 날짜가 3개 이하면 다 나열, 많으면 "N일 선택"으로 축약
   (툴팁에 전체 목록). ✕(`clearDateFilter`)는 `selDates.clear()`로 전체 해제.
 - `renderCal`: `.sd` 클래스는 `selDates.has(s)`로 판단(여러 날짜에 동시에 붙을 수 있음).
-- `save()`: 저장 후 `selDates.clear()`.
+- `save()`: 저장 후 `selDates.clear()`. **(v1.4.44에서 제거)**
+
+**새 항목 추가 시 날짜 필터 유지 (v1.4.44)** — 위 v1.4.27/v1.4.36에서는 `save()`
+끝에 `selDate=null`/`selDates.clear()`를 넣어, 방금 추가·수정한 항목이 목록에 바로
+보이도록 날짜 필터를 자동으로 풀었다. 그런데 사용자가 **특정 날짜로 필터를 걸어둔
+상태에서 새 항목을 추가할 때마다 필터가 풀려버려 불편**하다고 신고했다. 그래서
+`save()`에서 `selDates.clear()`를 제거하고, 사용자가 걸어둔 날짜 필터를 그대로
+유지하도록 바꿨다. 저장 후 달력을 저장 항목의 달로 옮기는 것(`calY/calM`)은 그대로
+둔다. **주의**: 이 때문에 필터에 없는 날짜의 새 항목은 저장 직후 목록에 안 보일 수
+있으나(필터가 걸려 있으니 정상), 이는 의도된 동작이다 — 다시 `selDates.clear()`를
+넣지 말 것.
 
 ### 달력 요일/오늘 색상 (v1.4.26)
 `renderCal`에서 각 날짜의 `new Date(calY,calM-1,d).getDay()`로 요일을 계산해

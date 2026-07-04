@@ -681,7 +681,7 @@ mark{background:#fef08a;border-radius:2px}
 </head>
 <body>
 <div class="topbar">
-  <h1>📋 인수인계 관리 [JC02]</h1><span style="font-size:10px;color:#64b5f6;background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:4px;font-weight:400;letter-spacing:0.5px">v1.4.43</span>
+  <h1>📋 인수인계 관리 [JC02]</h1><span style="font-size:10px;color:#64b5f6;background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:4px;font-weight:400;letter-spacing:0.5px">v1.4.44</span>
   <span class="badge" id="tbadge">0건</span>
   <span id="netbadge" onclick="showNetInfo()" style="font-size:11px;padding:2px 8px;border-radius:99px;cursor:pointer;color:#f87171" title="확인 중...">●</span>
   <div class="spacer"></div>
@@ -1281,9 +1281,9 @@ async function save(){
     all.push(JSON.parse(raw));
   }
   closeModal();
-  // 저장한 항목이 목록에 바로 보이도록 날짜 필터는 해제하고, 달력만 그 달로
-  // 이동시킨다(해당 날짜에 점이 찍혀 보이게).
-  selDates.clear();
+  // 새 항목을 추가해도 사용자가 걸어둔 날짜 필터(selDates)는 유지한다(예전엔
+  // 여기서 selDates.clear()로 필터를 풀었으나, 사용자가 필터가 풀린다고 불편을
+  // 호소해 제거함). 달력만 저장한 항목의 달로 이동시킨다(해당 날짜에 점이 보이게).
   const y=parseInt(date.slice(0,4)),m=parseInt(date.slice(5,7));
   calY=y;calM=m;
   applyFilter();

@@ -29,7 +29,7 @@ goapp/main_jc02_v142.go.tmp    JC02 소스 (정본)
 
 ## 🔨 빌드 & 버전
 
-현재 버전: **v1.4.43**
+현재 버전: **v1.4.44**
 
 ```bash
 export GOPATH=$HOME/go && export PATH=$PATH:/usr/local/go/bin
@@ -37,7 +37,7 @@ cd goapp
 # JC01 (JC02는 파일명만 jc02로)
 cp main_jc01_v142.go.tmp main.go && gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.43.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.44.exe .
 rm -f main.go
 ```
 
@@ -54,7 +54,7 @@ rm -f main.go
 확인은 `diff main_jc01_v142.go.tmp main_jc02_v142.go.tmp` 한 줄이면 된다 —
 두 파일을 각각 Read 하지 말 것.
 
-다른 곳 (JC01 → JC02 기준 라인번호, v1.4.43 시점):
+다른 곳 (JC01 → JC02 기준 라인번호, v1.4.44 시점):
 | 줄 | JC01 | JC02 |
 |----|------|------|
 | 307 | 주석 "JC01은 100000번대" | "JC02는 200000번대" |
@@ -168,8 +168,10 @@ type Record struct {
   클릭할 때마다 그 날짜만 토글(있으면 제거, 없으면 추가). `applyFilter`가
   `selDates.size>0 && !selDates.has(r.date)`로 거른다. `cntbar`의 파란 칩(선택 3개
   이하면 날짜 나열, 많으면 "N일 선택")의 ✕(`clearDateFilter`)로 전체 해제.
-  `rowClick`은 하이라이트만(상세 패널 부활 금지). 저장(`save`) 후엔 `selDates.clear()`로
-  필터 풀어 새 항목이 보이게.
+  `rowClick`은 하이라이트만(상세 패널 부활 금지). **저장(`save`) 후에도 날짜 필터는
+  유지한다 (v1.4.44)** — 예전엔 `selDates.clear()`로 필터를 풀었으나 사용자가 새 항목
+  추가 시 필터가 풀린다고 불편을 호소해 제거함. `save`는 달력만 저장 항목의 달로
+  옮기고(`calY/calM`) 필터는 그대로 둔다. 다시 `selDates.clear()`를 넣지 말 것.
 - **메모 위치 (v1.4.28)** — 메모 카드(`.memo-card`)는 예전엔 표와 달력 사이 별도
   칼럼이었으나, 이제 `.right`(달력) 칼럼 안 **달력 밑**으로 옮김. `.memo-card`는
   `flex:1`로 달력 아래 남은 높이를 채운다. 표(`.left`)가 그만큼 넓어짐.

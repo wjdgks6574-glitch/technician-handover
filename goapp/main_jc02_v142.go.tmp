@@ -449,6 +449,10 @@ func handleBind(w webview.WebView) {
 		return openPartsFileImpl()
 	})
 
+	w.Bind("openHistoryFile_go", func() string {
+		return openHistoryFileImpl()
+	})
+
 	// 메모 저장은 localStorage를 쓰면 SetHtml(NavigateToString)의 opaque
 	// origin 때문에 재시작 시 사라진다. 그래서 로컬 파일에 저장한다. key로
 	// 파일명을 분리(JC01=hk_memo / JC02=hk_memo_jc02)해 같은 PC에 두 exe를
@@ -479,6 +483,34 @@ func openPartsFileImpl() string {
 			continue
 		}
 		if strings.Contains(name, "JC_2 Sorter 필요 Parts2") &&
+			(strings.HasSuffix(name, ".xlsx") || strings.HasSuffix(name, ".xls") || strings.HasSuffix(name, ".xlsb")) {
+			target = filepath.Join(dir, name)
+			break
+		}
+	}
+	if target == "" {
+		return "ERR:파일을 찾을 수 없습니다"
+	}
+	cmd := exec.Command("cmd", "/C", "start", "", target)
+	if err := cmd.Start(); err != nil {
+		return "ERR:파일 열기 실패 (" + err.Error() + ")"
+	}
+	return "OK:" + target
+}
+
+func openHistoryFileImpl() string {
+	dir := `\\172.23.11.175\CELL_MEE_JC_MaintenanceEquipment\03_JC2\00_Process\P07~10 Backend\P10 Cell Sorter`
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return "ERR:폴더를 찾을 수 없습니다 (" + err.Error() + ")"
+	}
+	var target string
+	for _, e := range entries {
+		name := e.Name()
+		if strings.HasPrefix(name, "~$") {
+			continue
+		}
+		if strings.Contains(name, "Part's 교체 이력 CHECK SHEET") &&
 			(strings.HasSuffix(name, ".xlsx") || strings.HasSuffix(name, ".xls") || strings.HasSuffix(name, ".xlsb")) {
 			target = filepath.Join(dir, name)
 			break
@@ -564,6 +596,7 @@ body{font-family:'맑은 고딕',sans-serif;background:#f0f4f8;color:#1a202c;fon
 .btn-new{background:#3b82f6;color:#fff}.btn-new:hover{background:#2563eb}
 .btn-csv{background:#059669;color:#fff;margin-left:4px}.btn-csv:hover{background:#047857}
 .btn-parts{background:#7c3aed;color:#fff;padding:5px 12px;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-family:'맑은 고딕',sans-serif;font-weight:600;white-space:nowrap}.btn-parts:hover{background:#6d28d9}
+.btn-history{background:#0891b2;color:#fff;padding:5px 12px;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-family:'맑은 고딕',sans-serif;font-weight:600;white-space:nowrap}.btn-history:hover{background:#0e7490}
 .main{display:flex;flex:1;overflow:hidden;gap:8px;padding:8px}
 .left{display:flex;flex-direction:column;flex:1;background:#fff;border-radius:10px;overflow:hidden;border:1px solid #e2e8f0}
 .searchbar{padding:10px 12px;border-bottom:1px solid #e2e8f0;display:flex;gap:8px;align-items:center;background:#f8fafc}
@@ -687,7 +720,7 @@ mark{background:#fef08a;border-radius:2px}
 </head>
 <body>
 <div class="topbar">
-  <h1>📋 인수인계 관리 [JC02]</h1><span style="font-size:10px;color:#64b5f6;background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:4px;font-weight:400;letter-spacing:0.5px">v1.4.53</span>
+  <h1>📋 인수인계 관리 [JC02]</h1><span style="font-size:10px;color:#64b5f6;background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:4px;font-weight:400;letter-spacing:0.5px">v1.4.54</span>
   <span class="badge" id="tbadge">0건</span>
   <span id="netbadge" onclick="showNetInfo()" style="font-size:11px;padding:2px 8px;border-radius:99px;cursor:pointer;color:#f87171" title="확인 중...">●</span>
   <div class="spacer"></div>
@@ -714,6 +747,7 @@ mark{background:#fef08a;border-radius:2px}
         <option>감소활동</option>
       </select>
       <button class="btn btn-parts" onclick="openPartsFile()">📋 파트 요청 리스트</button>
+      <button class="btn btn-history" onclick="openHistoryFile()">🔧 Part's 교체 이력</button>
     </div>
     <div class="cntbar" id="cntbar"></div>
     <div class="tw">
@@ -1384,6 +1418,13 @@ function exportCSV(){
 
 async function openPartsFile(){
   const res=await openPartsFile_go();
+  if(res.startsWith('ERR:')){
+    alert('파일을 열 수 없습니다: '+res.slice(4));
+  }
+}
+
+async function openHistoryFile(){
+  const res=await openHistoryFile_go();
   if(res.startsWith('ERR:')){
     alert('파일을 열 수 없습니다: '+res.slice(4));
   }

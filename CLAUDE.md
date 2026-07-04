@@ -29,7 +29,7 @@ goapp/main_jc02_v142.go.tmp    JC02 소스 (정본)
 
 ## 🔨 빌드 & 버전
 
-현재 버전: **v1.4.45**
+현재 버전: **v1.4.46**
 
 ```bash
 export GOPATH=$HOME/go && export PATH=$PATH:/usr/local/go/bin
@@ -37,7 +37,7 @@ cd goapp
 # JC01 (JC02는 파일명만 jc02로)
 cp main_jc01_v142.go.tmp main.go && gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.45.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.46.exe .
 rm -f main.go
 ```
 
@@ -54,7 +54,7 @@ rm -f main.go
 확인은 `diff main_jc01_v142.go.tmp main_jc02_v142.go.tmp` 한 줄이면 된다 —
 두 파일을 각각 Read 하지 말 것.
 
-다른 곳 (JC01 → JC02 기준 라인번호, v1.4.45 시점):
+다른 곳 (JC01 → JC02 기준 라인번호, v1.4.46 시점):
 | 줄 | JC01 | JC02 |
 |----|------|------|
 | 307 | 주석 "JC01은 100000번대" | "JC02는 200000번대" |
@@ -85,7 +85,7 @@ type Record struct {
   근무자 칸 이름 위에 한 줄로 표시(`workerCell(w,shift)`의 `.wk-shift`).
 - `ID`는 **정수** (문자열로 절대 바꾸지 말 것 — WebView2 바인딩 의존).
 - **정렬(메인 목록, v1.4.39 기준)**: `flag`(최상단) → 날짜 내림 → **근무조 우선순위**
-  (`SHIFT_ORDER`: 야>주, 빈 값은 맨 뒤) → **구분 우선순위**
+  (`SHIFT_ORDER`: 주>야, 빈 값은 맨 뒤) → **구분 우선순위**
   (`CAT_ORDER`: 전달사항>Classification>기자재관리>설비이슈, 그 외인 감소활동은
   맨 뒤) → **설비 호기 순서**(`EQUIP_BY_DONG` 나열 순) → id 내림(안정성 타이브레이커).
   `flag`는 행별 ⚑ 버튼으로 토글, `dbSetFlag(id,flag)`가 메모리 갱신 후
@@ -182,6 +182,15 @@ type Record struct {
   한쪽만 넣으면 이후/이전 필터로 동작. 달력엔 범위 안 날짜에 연녹색 `.rng` 클래스가
   붙고(단, `.sd`/`.td2`가 CSS 선언 순서상 뒤라 선택/오늘 표시가 이김), `cntbar`엔 초록
   칩(📆 시작~종료 ✕`clearRange()`)이 뜬다. `clearRange()`가 입력·상태를 비운다.
+  **입력 형식 YY/MM/DD 텍스트 (v1.4.46)** — 예전엔 `<input type="date">`(네이티브
+  달력)였는데, 표시 형식이 OS 로케일 고정(`2026-06-24`)이라 좁은 달력 칸에서 잘리고
+  길었다. 사용자가 `26/06/24` 형식을 원해 **`type="text"`로 바꿨다**(네이티브 date는
+  CSS/JS로 표시 형식을 못 바꾼다). `oninput="rangeType()"`이 숫자만 받아 2·4자리 뒤
+  `/`를 자동 삽입, `rangeParse('26/06/24')`가 `2026-06-24`로 되돌려 **내부 상태
+  (`rangeStart/End`)·비교는 그대로 `YYYY-MM-DD`** 유지(필터 로직 무변경). `rangeFmt`가
+  다시 `26/06/24`로 표시(입력칸·칩 모두). 개별 날짜 선택은 위 달력 그리드 클릭으로
+  하므로 텍스트 입력으로 바꿔도 날짜 선택 수단은 남아 있다. 다시 `type="date"`로
+  되돌리면 형식 요청이 깨지고 칸이 좁아 잘린다 — 되돌리지 말 것.
 - **메모 위치 (v1.4.28)** — 메모 카드(`.memo-card`)는 예전엔 표와 달력 사이 별도
   칼럼이었으나, 이제 `.right`(달력) 칼럼 안 **달력 밑**으로 옮김. `.memo-card`는
   `flex:1`로 달력 아래 남은 높이를 채운다. 표(`.left`)가 그만큼 넓어짐.
@@ -246,7 +255,8 @@ type Record struct {
   회색(`.foreign`)이 근무조 색보다 항상 우선**한다(동 구분이 더 중요). 반대로
   근무조 색은 hover/선택(`.sel`) 파랑보다 우선 표시된다. 색을 더 진하게/다르게
   바꿀 땐 이 우선순위(선언 순서)를 유지할 것.
-- **정렬에 근무조 추가 (v1.4.39)** — `applyFilter`의 `fil.sort`에서 날짜 다음,
-  구분(`CAT_ORDER`) 이전에 근무조 타이브레이커를 넣음: `SHIFT_ORDER=['야','주']`,
-  `shiftRank(s)`가 인덱스 반환(빈 값/기타는 맨 뒤). **야간이 주간보다 먼저** 온다
-  (사용자 요청 순서 — 착각해서 반대로 바꾸지 말 것).
+- **정렬에 근무조 추가 (v1.4.39, v1.4.46에서 순서 반전)** — `applyFilter`의 `fil.sort`
+  에서 날짜 다음, 구분(`CAT_ORDER`) 이전에 근무조 타이브레이커를 넣음:
+  `SHIFT_ORDER=['주','야']`, `shiftRank(s)`가 인덱스 반환(빈 값/기타는 맨 뒤).
+  **주간이 야간보다 먼저** 온다. (v1.4.39땐 '야→주'였으나 v1.4.46에서 사용자가
+  '주→야'로 바꿔달라 요청 — 이 배열 순서만 뒤집으면 됨. 착각해서 되돌리지 말 것.)

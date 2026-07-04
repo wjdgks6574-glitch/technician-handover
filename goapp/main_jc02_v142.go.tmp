@@ -686,7 +686,7 @@ mark{background:#fef08a;border-radius:2px}
 </head>
 <body>
 <div class="topbar">
-  <h1>📋 인수인계 관리 [JC02]</h1><span style="font-size:10px;color:#64b5f6;background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:4px;font-weight:400;letter-spacing:0.5px">v1.4.45</span>
+  <h1>📋 인수인계 관리 [JC02]</h1><span style="font-size:10px;color:#64b5f6;background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:4px;font-weight:400;letter-spacing:0.5px">v1.4.46</span>
   <span class="badge" id="tbadge">0건</span>
   <span id="netbadge" onclick="showNetInfo()" style="font-size:11px;padding:2px 8px;border-radius:99px;cursor:pointer;color:#f87171" title="확인 중...">●</span>
   <div class="spacer"></div>
@@ -738,9 +738,9 @@ mark{background:#fef08a;border-radius:2px}
       <div class="days" id="days"></div>
       <div class="cal-range">
         <span>기간</span>
-        <input type="date" id="rs" onchange="applyRange()">
+        <input type="text" id="rs" placeholder="26/06/24" maxlength="8" inputmode="numeric" oninput="rangeType(this)" onchange="applyRange()">
         <span>~</span>
-        <input type="date" id="re" onchange="applyRange()">
+        <input type="text" id="re" placeholder="26/06/24" maxlength="8" inputmode="numeric" oninput="rangeType(this)" onchange="applyRange()">
         <button onclick="clearRange()">해제</button>
       </div>
       <div class="cal-hint">날짜 클릭=그 날짜만 표시(여러 개 가능) · 기간 입력=시작~종료 사이 전체 표시</div>
@@ -811,8 +811,8 @@ const EQUIP_BY_DONG={
 };
 
 // 목록 정렬용 근무조/구분/설비 우선순위. 날짜(역순) 다음 타이브레이커로 쓴다:
-// 근무조(야>주>그 외) > 전달사항 > Classification > 기자재관리 > 설비이슈 > (그 외, 예: 감소활동).
-const SHIFT_ORDER=['야','주'];
+// 근무조(주>야>그 외) > 전달사항 > Classification > 기자재관리 > 설비이슈 > (그 외, 예: 감소활동).
+const SHIFT_ORDER=['주','야'];
 function shiftRank(s){ const i=SHIFT_ORDER.indexOf(s); return i===-1?SHIFT_ORDER.length:i; }
 const CAT_ORDER=['전달사항','Classification','기자재관리','설비이슈'];
 function catRank(c){ const i=CAT_ORDER.indexOf(c); return i===-1?CAT_ORDER.length:i; }
@@ -1204,7 +1204,7 @@ function updateBadge(){
   let chips='';
   if(rangeStart||rangeEnd){
     // 기간 필터가 켜져 있으면 초록 칩으로 표시하고 ✕로 해제할 수 있게 한다.
-    const label=(rangeStart||'…')+' ~ '+(rangeEnd||'…');
+    const label=(rangeStart?rangeFmt(rangeStart):'…')+' ~ '+(rangeEnd?rangeFmt(rangeEnd):'…');
     chips+='<span style="background:#38a169;color:#fff;padding:2px 8px;border-radius:99px;font-weight:600;margin-right:6px">📆 '
       +label+' <span onclick="clearRange()" style="cursor:pointer;margin-left:2px">✕</span></span>';
   }
@@ -1219,12 +1219,29 @@ function updateBadge(){
   if(chips){cb.innerHTML=chips+txt;}else{cb.textContent=txt;}
 }
 function clearDateFilter(){selDates.clear();applyFilter();}
-// 기간 필터: 달력 밑 시작(#rs)~종료(#re) 입력을 읽어 그 사이 날짜만 표시.
-// 시작만/종료만 넣어도 각각 이후/이전으로 동작. 시작>종료면 자동으로 뒤바꿔 처리.
+// 기간 필터: 달력 밑 시작(#rs)~종료(#re) 입력. 화면 표시는 YY/MM/DD(예:26/06/24)지만
+// 내부 상태(rangeStart/End)는 비교용으로 YYYY-MM-DD로 저장한다. 시작만/종료만 넣어도
+// 각각 이후/이전으로 동작. 시작>종료면 자동으로 뒤바꿔 처리.
+function rangeParse(v){ // '26/06/24' → '2026-06-24' (불완전/비정상 입력은 '')
+  const m=String(v).trim().match(/^(\d{2})\D?(\d{1,2})\D?(\d{1,2})$/);
+  if(!m) return '';
+  const mm=+m[2], dd=+m[3];
+  if(mm<1||mm>12||dd<1||dd>31) return '';
+  return '20'+m[1]+'-'+String(mm).padStart(2,'0')+'-'+String(dd).padStart(2,'0');
+}
+function rangeFmt(iso){ return iso? iso.slice(2,4)+'/'+iso.slice(5,7)+'/'+iso.slice(8,10):''; }
+function rangeType(el){ // 숫자만 받아 2,4자리 뒤에 / 자동 삽입 → 26/06/24
+  let v=el.value.replace(/[^0-9]/g,'').slice(0,6);
+  if(v.length>=5) v=v.slice(0,2)+'/'+v.slice(2,4)+'/'+v.slice(4);
+  else if(v.length>=3) v=v.slice(0,2)+'/'+v.slice(2);
+  el.value=v;
+}
 function applyRange(){
-  let a=document.getElementById('rs').value, b=document.getElementById('re').value;
-  if(a&&b&&a>b){const t=a;a=b;b=t;document.getElementById('rs').value=a;document.getElementById('re').value=b;}
+  let a=rangeParse(document.getElementById('rs').value), b=rangeParse(document.getElementById('re').value);
+  if(a&&b&&a>b){const t=a;a=b;b=t;}
   rangeStart=a; rangeEnd=b;
+  if(a) document.getElementById('rs').value=rangeFmt(a);
+  if(b) document.getElementById('re').value=rangeFmt(b);
   applyFilter();
 }
 function clearRange(){

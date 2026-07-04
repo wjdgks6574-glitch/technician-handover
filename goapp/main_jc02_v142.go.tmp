@@ -720,7 +720,7 @@ mark{background:#fef08a;border-radius:2px}
 </head>
 <body>
 <div class="topbar">
-  <h1>📋 인수인계 관리 [JC02]</h1><span style="font-size:10px;color:#64b5f6;background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:4px;font-weight:400;letter-spacing:0.5px">v1.4.54</span>
+  <h1>📋 인수인계 관리 [JC02]</h1><span style="font-size:10px;color:#64b5f6;background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:4px;font-weight:400;letter-spacing:0.5px">v1.4.55</span>
   <span class="badge" id="tbadge">0건</span>
   <span id="netbadge" onclick="showNetInfo()" style="font-size:11px;padding:2px 8px;border-radius:99px;cursor:pointer;color:#f87171" title="확인 중...">●</span>
   <div class="spacer"></div>
@@ -899,13 +899,20 @@ function pmCells(eq){
   return '<div class="pm-cell pm-name">'+esc(eq)+'</div>'
     +'<div class="pm-cell pm-text" contenteditable="true" data-eq="'+esc(eq)+'" oninput="savePmCell(this)">'+esc(pmData[eq]||'')+'</div>';
 }
+const PM_SPLIT={
+  'JC02':[['공통','#1','#2','#3','#4','#5','#6','#7','#31','#32','#99'],
+          ['#41','#51','#52','#60','#61','#71','#96']]
+};
 function renderPmTable(){
   const list=EQUIP_BY_DONG[MY_DONG]||[];
-  const half=Math.ceil(list.length/2);
+  const spl=PM_SPLIT[MY_DONG];
+  let Larr,Rarr;
+  if(spl){ Larr=spl[0]; Rarr=spl[1]; }
+  else { const half=Math.ceil(list.length/2); Larr=list.slice(0,half); Rarr=list.slice(half); }
   const hdr='<div class="pm-cell pm-h">설비</div><div class="pm-cell pm-h">내용</div>';
   let L=hdr, R=hdr;
-  for(let r=0;r<half;r++) L+=pmCells(list[r]);
-  for(let r=half;r<list.length;r++) R+=pmCells(list[r]);
+  for(const eq of Larr) L+=pmCells(eq);
+  for(const eq of Rarr) R+=pmCells(eq);
   document.getElementById('pm-grid').innerHTML='<div class="pm-half">'+L+'</div><div class="pm-half">'+R+'</div>';
 }
 function savePmCell(el){

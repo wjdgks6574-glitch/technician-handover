@@ -29,7 +29,7 @@ goapp/main_jc02_v142.go.tmp    JC02 소스 (정본)
 
 ## 🔨 빌드 & 버전
 
-현재 버전: **v1.4.46**
+현재 버전: **v1.4.47**
 
 ```bash
 export GOPATH=$HOME/go && export PATH=$PATH:/usr/local/go/bin
@@ -37,7 +37,7 @@ cd goapp
 # JC01 (JC02는 파일명만 jc02로)
 cp main_jc01_v142.go.tmp main.go && gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.46.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.47.exe .
 rm -f main.go
 ```
 
@@ -54,7 +54,7 @@ rm -f main.go
 확인은 `diff main_jc01_v142.go.tmp main_jc02_v142.go.tmp` 한 줄이면 된다 —
 두 파일을 각각 Read 하지 말 것.
 
-다른 곳 (JC01 → JC02 기준 라인번호, v1.4.46 시점):
+다른 곳 (JC01 → JC02 기준 라인번호, v1.4.47 시점):
 | 줄 | JC01 | JC02 |
 |----|------|------|
 | 307 | 주석 "JC01은 100000번대" | "JC02는 200000번대" |
@@ -206,7 +206,11 @@ type Record struct {
   키 `'hk_pm_'+MY_DONG`(동별 파일), 값 `{설비:내용}` JSON(`pmData`). `renderPmTable`이
   시작 시 표를 그린다(그 뒤엔 셀 편집만, 재렌더 없음 → 포커스 유지). `localStorage`로
   되돌리지 말 것(메모와 동일 — opaque origin 유실). v1.4.30의 드롭다운 방식은 폐기.
-  **내용 칸 폭 15% 축소 (v1.4.40, v1.4.41에서 배치 버그 수정)** —
+  **내용 칸 폭 15% 축소 (v1.4.40, v1.4.41에서 배치 버그 수정) → v1.4.47에서 원복** —
+  ⚠️ 아래 축소는 **v1.4.47에서 되돌렸다**. 현재 `grid-template-columns`는
+  `max-content 1fr max-content 1fr`(4트랙)이고 내용 칸이 헤더 폭까지 꽉 찬다.
+  아래 문단은 auto-flow 버그 지식(트랙 수≠셀 수 주의) 보존용이며, 트랙을 다시
+  추가할 일이 있을 때만 참고하라. 원래 축소 방식은:
   `grid-template-columns`가 `max-content .85fr max-content .85fr .3fr`. 내용
   칸(`1fr`이던 것)을 `.85fr` 두 개로 줄이고, 남는 `.3fr`을 5번째 트랙으로 둬서
   오른쪽 여백으로 흡수시켰다. **주의**: 트랙만 5개로 늘리면 CSS Grid의 auto-flow가
@@ -220,6 +224,14 @@ type Record struct {
   채우므로, 폭을 줄이려면 이렇게 트랙을 추가하는 방식이 맞다 — 다만 **트랙을
   추가할 때마다 반드시 `nth-child`로 열을 명시 고정할 것** (안 그러면 이 버그가
   재발한다).
+  **내용 칸을 헤더 폭까지 원복 (v1.4.47)** — 위 `.3fr` 스페이서 트랙이 오른쪽에
+  회색 세로 띠로 보인다는 지적(사용자 스크린샷)이 있어, `.3fr` 트랙을 없애고 내용
+  칸을 다시 `1fr` 두 개로(`max-content 1fr max-content 1fr`, 4트랙) 되돌렸다. 이제
+  내용 칸이 "설비 PM 체크리스트" 헤더 폭까지 꽉 찬다. `nth-child` 열 고정(1~4)은
+  **그대로 남겨뒀다** — 4트랙이라 자연스러운 auto-flow와 결과가 같고, 나중에 트랙을
+  다시 손댈 때의 안전장치로 유지. Playwright로 마지막 내용 칸이 그리드 오른쪽 끝까지
+  닿는 것(gap 1px=패딩) 확인. 회색 띠를 다시 만들려면(폭 축소) 위 문단의 트랙 추가
+  방식을 따르되 반드시 `nth-child` 고정을 함께 둘 것.
   **`.pm-col` 고정폭으로 전환, 메인 목록에 여백 양보 (v1.4.41)** — 예전엔
   `.pm-col{flex:1;min-width:360px}`로 `.left`(메인 목록)와 똑같이 늘어나서, 내용
   칸을 줄여도 그 여백이 PM 칸 안에서만 남고 메인 목록은 넓어지지 않았다.

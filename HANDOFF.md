@@ -1,6 +1,6 @@
 # 인수인계 관리 프로그램 - 작업 인수인계 문서
 
-## 현재 버전: v1.4.46
+## 현재 버전: v1.4.47
 
 Go + WebView2 기반 Windows 데스크톱 앱. JC01(1동)/JC02(2동) 두 변형이 거의 동일한
 소스 구조를 공유하며, 각각 별도의 .exe로 빌드됨.
@@ -38,13 +38,13 @@ cd goapp
 cp main_jc01_v142.go.tmp main.go
 gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.46.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.47.exe .
 
 # JC02
 cp main_jc02_v142.go.tmp main.go
 gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC02_v1.4.46.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC02_v1.4.47.exe .
 ```
 
 **주의**: `-ldflags`에 `-s -w`를 넣지 마세요. 심볼 제거(압축)가 백신 오탐의
@@ -399,7 +399,7 @@ function scheduleMidnight(){
   **다시 `localStorage`로 되돌리지 말 것 — 유실 재발.** (`DataPath` 고정 자체는
   WebView2 캐시 등을 우리 폴더에 모으는 용도로 그대로 유지.)
 
-### 설비별 PM 체크리스트 (v1.4.30 도입, v1.4.31 상시 표 방식으로 변경, v1.4.40/41 폭 조정, v1.4.42 셀 스크롤)
+### 설비별 PM 체크리스트 (v1.4.30 도입, v1.4.31 상시 표 방식으로 변경, v1.4.40/41 폭 조정 후 v1.4.47 원복, v1.4.42 셀 스크롤)
 설비마다 PM(예방정비) 시 할 일을 적어두는 표. 메모처럼 **로컬 파일 저장**이라 껐다
 켜도 유지된다.
 - **위치/형태 (v1.4.31)**: 메인 목록(`.left`)과 달력(`.right`) **사이**의 독립 칼럼
@@ -447,6 +447,17 @@ grid-template-columns이 선언하는 트랙 수와 auto-flow가 실제로 채�
 밀림 버그가 재발한다. 비율을 더 줄이거나 늘리려면 `.85fr`/`.3fr` 두 숫자의
 합이 원래 `1fr`+`1fr`=2였다는 걸 기준으로 계산할 것(예: 30% 줄이려면
 `.7fr .7fr .6fr`).
+
+**내용 칸을 헤더 폭까지 원복 (v1.4.47)**: 위 축소가 만든 5번째 `.3fr` 스페이서
+트랙이 오른쪽에 **회색 세로 띠**로 보인다는 지적(사용자 스크린샷)이 있었다. 위
+v1.4.41에서 "의도된 동작"이라던 그 회색 여백을 사용자가 원치 않아서, `.3fr`
+트랙을 없애고 내용 칸을 다시 `1fr` 두 개로 되돌렸다:
+`grid-template-columns:max-content 1fr max-content 1fr`(4트랙). 이제 내용 칸이
+"설비 PM 체크리스트" 헤더 폭 끝까지 꽉 찬다. `nth-child`의 `grid-column:1~4` 고정은
+**그대로 유지**했다 — 4트랙에선 자연스러운 auto-flow와 결과가 같아 무해하고, 나중에
+트랙을 다시 손댈 때의 안전장치로 남겨둔 것. Playwright로 마지막 내용 칸의 오른쪽
+끝이 그리드 오른쪽 끝(패딩 1px 제외)에 닿는 것을 확인. 다시 폭을 줄이고 싶으면 위
+"트랙 추가 + nth-child 고정" 방식을 따르되, 그러면 회색 띠가 다시 생긴다는 걸 감안할 것.
 
 **`.pm-col` 고정폭 전환, 메인 목록에 여백 양보 (v1.4.41)**: 내용 칸을 줄여도
 `.pm-col` 자체가 `flex:1;min-width:360px`로 메인 목록(`.left`)과 똑같이 늘어나는

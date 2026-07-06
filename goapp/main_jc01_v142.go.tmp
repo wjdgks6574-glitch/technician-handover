@@ -589,7 +589,8 @@ select{padding:6px 8px;border:1px solid #cbd5e0;border-radius:6px;font-size:12px
 .frow{display:flex;border-bottom:1px solid #f0f4f8;cursor:pointer;transition:background .1s}
 .frow:hover{background:#ebf8ff}
 .frow.sel{background:#bee3f8}
-.fc{padding:8px 10px;font-size:12px;display:flex;align-items:center;justify-content:center;min-width:0}
+.fc{padding:8px 10px;font-size:12px;display:flex;align-items:center;justify-content:center;min-width:0;border-right:1px solid #f0f4f8}
+.fc:last-child{border-right:none}
 .fc-flag{flex:0 0 30px;width:30px;padding:0}
 .flagbtn{background:none;border:none;cursor:pointer;font-size:14px;color:#cbd5e0;padding:2px 4px;line-height:1;border-radius:4px}
 .flagbtn:hover{background:#edf2f7}
@@ -687,7 +688,7 @@ mark{background:#fef08a;border-radius:2px}
 </head>
 <body>
 <div class="topbar">
-  <h1>📋 인수인계 관리 [JC01]</h1><span style="font-size:10px;color:#64b5f6;background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:4px;font-weight:400;letter-spacing:0.5px">v1.4.56</span>
+  <h1>📋 인수인계 관리 [JC01]</h1><span style="font-size:10px;color:#64b5f6;background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:4px;font-weight:400;letter-spacing:0.5px">v1.4.57</span>
   <span class="badge" id="tbadge">0건</span>
   <span id="netbadge" onclick="showNetInfo()" style="font-size:11px;padding:2px 8px;border-radius:99px;cursor:pointer;color:#f87171" title="확인 중...">●</span>
   <div class="spacer"></div>

@@ -1,6 +1,6 @@
 # 인수인계 관리 프로그램 - 작업 인수인계 문서
 
-## 현재 버전: v1.4.51
+## 현재 버전: v1.4.56
 
 Go + WebView2 기반 Windows 데스크톱 앱. JC01(1동)/JC02(2동) 두 변형이 거의 동일한
 소스 구조를 공유하며, 각각 별도의 .exe로 빌드됨. 상세 규칙/구현 상태는 `CLAUDE.md` 참고.
@@ -27,11 +27,11 @@ cd goapp
 
 cp main_jc01_v142.go.tmp main.go && gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.51.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.56.exe .
 
 cp main_jc02_v142.go.tmp main.go && gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC02_v1.4.51.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC02_v1.4.56.exe .
 ```
 
 `-ldflags`에 `-s -w` 넣지 말 것. 버전 올릴 때 두 소스 HTML의 `v1.4.X` 문자열도 함께 변경.

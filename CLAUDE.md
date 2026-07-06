@@ -25,29 +25,29 @@ goapp/main_jc02_v142.go.tmp    JC02 소스 (정본)
 
 ## 🔨 빌드 & 버전
 
-현재 버전: **v1.4.51**
+현재 버전: **v1.4.56**
 
 ```bash
 export GOPATH=$HOME/go && export PATH=$PATH:/usr/local/go/bin
 cd goapp
 cp main_jc01_v142.go.tmp main.go && gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.51.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.56.exe .
 rm -f main.go
 ```
 
 - `-ldflags`에 `-s -w` 넣지 말 것 (백신 오탐 원인).
 - 빌드해서 전달할 때마다 버전을 올린다. 소스 2개 HTML의 `v1.4.X` 문자열
-  (각 파일 690번째 줄)과 이 문서·`HANDOFF.md`의 버전도 함께 바꾼다.
+  (JC01 690번째 줄 / JC02 723번째 줄)과 이 문서·`HANDOFF.md`의 버전도 함께 바꾼다.
 - **문서(CLAUDE.md/HANDOFF.md) 갱신은 버전 5개마다 한 번씩만** 몰아서 정리.
 - `go vet`는 로컬(리눅스)에서 `syscall.NewLazyDLL`, `buildHTML`의 Sprintf(`%`)를
   오탐한다 — 노이즈. `GOOS=windows` 빌드가 통과하면 정상.
 
-## ⚠️ 두 소스는 997줄이 동일, 딱 13곳만 다르다
+## ⚠️ 두 소스는 대부분 동일, 13곳 + JC02 전용 기능 1개만 다르다
 
 확인은 `diff main_jc01_v142.go.tmp main_jc02_v142.go.tmp` 한 줄이면 된다.
 
-다른 곳 (JC01 → JC02 기준 라인번호, v1.4.51 시점):
+**공통 13곳** (JC01 기준 라인번호, v1.4.56 시점):
 | 줄 | JC01 | JC02 |
 |----|------|------|
 | 307 | 주석 "JC01은 100000번대" | "JC02는 200000번대" |
@@ -62,9 +62,14 @@ rm -f main.go
 | 835 | `const MY_DONG='JC01'` | `='JC02'` |
 | 844 | `memoSave('hk_memo',…)` | `memoSave('hk_memo_jc02',…)` |
 | 850 | `memoLoad('hk_memo')` | `memoLoad('hk_memo_jc02')` |
-| 1002 | `fD.value='JC01'` | `='JC02'` |
+| 1009 | `fD.value='JC01'` | `='JC02'` |
 
-> PM 체크리스트 저장 키는 `'hk_pm_'+MY_DONG`으로 양쪽 파일 동일(diff 아님).
+**JC02 전용 기능 (v1.4.54~)**: "Part's 교체 이력" 버튼. JC02 diff의 순수 추가분
+(`451a`, `470c`의 `openHistoryFileImpl`, `566a`의 `.btn-history` CSS, `716a`의
+버튼, `1393a`의 `openHistoryFile()` JS). JC01엔 없다.
+
+> PM 체크리스트 저장 키(`'hk_pm_'+MY_DONG`)와 좌/우 분할(`PM_SPLIT`, JC02만 값
+> 존재하나 코드 문자열은 양쪽 동일)은 diff 아님.
 
 ## 🗂 데이터 모델 (Record)
 
@@ -117,15 +122,18 @@ type Record struct {
 - 동별 쓰기 권한: `myDong`/`MY_DONG`만 쓰기 가능, 상대 동은 서버에서도 거부.
 - 상대 동 행: `.frow.foreign` 배경만 회색, 글자색은 검정 유지.
 - 전체보기 닫기 버튼: `.vfclose` 클래스로 찾을 것(`closest('[style]')` 금지).
-- 달력 CSS 선언 순서: `.sd`(선택) → `.td2`(오늘) → `.sat`/`.sun` → 근무조 배경 → `.foreign`.
+- 달력 CSS 선언 순서: `.sat`/`.sun` → `.rng`(기간) → `.td2`(오늘) → `.sd`(선택, 항상 이김) → 근무조 배경 → `.foreign`.
+- 메인 목록 내용칸(`.fc-ct .pv`): 높이 제한 없음(세로로 무한정 늘어남). `max-height`/`overflow:hidden` 넣지 말 것.
 - 자정 갱신: `scheduleMidnight()`가 매일 00:00:02에 `renderCal` 재호출.
 - 날짜 필터: `selDates`(Set), `save()` 후에도 유지.
 - 기간 필터: `.cal-range`의 `#rs`/`#re`(텍스트, `26/06/24` 형식) + `#rsd`/`#red`(아이콘
   date input). 내부 상태(`rangeStart/End`)는 `YYYY-MM-DD`.
 - 메모: `.right` 칼럼 달력 밑, `flex:1`, `min-height:260px`.
 - 구분 목록 변경 시 3곳(`#fC`,`#fc`,`.c<이름>`) 동시 수정.
-- PM 체크리스트: `.pm-col`(고정폭 360px) 안 `.pm-grid`(flex, 스크롤 1개)에 `.pm-half`
-  2개(좌/우 독립 2칸 그리드, `renderPmTable`이 L/R 문자열 조립).
+- PM 체크리스트: `.pm-col`(폭 auto) 안 `.pm-grid`(flex, 스크롤 1개)에 `.pm-half`
+  2개(좌/우 독립 2칸 그리드 `max-content 210px`, `renderPmTable`이 L/R 문자열 조립).
+  좌/우 설비 배분은 `PM_SPLIT[MY_DONG]`(JC02만 명시 배열: 좌=공통·#1~7·#31·#32·#99,
+  우=#41·#51·#52·#60·#61·#71·#96)이 있으면 그대로, 없으면 목록 절반씩 자동 분할.
 - 근무자 셀: `workerCell(w,shift)`로 여러 줄+폰트 축소 렌더.
 - 근무조 필드: `dbAdd/dbUpdate(date,equip,worker,shift,category,content,dong)` 인자 순서 고정.
 - 근무조 행 배경: `shift-day`/`shift-night`, CSS 순서 `.sel`→`shift-*`→`.foreign`.

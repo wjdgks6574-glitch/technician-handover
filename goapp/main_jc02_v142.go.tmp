@@ -641,7 +641,7 @@ select{padding:6px 8px;border:1px solid #cbd5e0;border-radius:6px;font-size:12px
 .wk-shift{font-size:9px;font-weight:700;color:#2b6cb0;margin-bottom:1px}
 .fc-c{flex:0 0 96px;width:96px}
 .fc-ct{flex:1 1 auto;min-width:0;justify-content:flex-start;align-items:flex-start}
-.fc-ct .pv{white-space:pre-wrap;max-height:146px;overflow:hidden;line-height:1.5;word-break:break-all;width:100%}
+.fc-ct .pv{white-space:pre-wrap;line-height:1.5;word-break:break-all;width:100%}
 .chip{display:inline-block;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:600}
 .c설비이슈{background:#bee3f8;color:#2b6cb0}
 .c전달사항{background:#fefcbf;color:#744210}
@@ -720,7 +720,7 @@ mark{background:#fef08a;border-radius:2px}
 </head>
 <body>
 <div class="topbar">
-  <h1>📋 인수인계 관리 [JC02]</h1><span style="font-size:10px;color:#64b5f6;background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:4px;font-weight:400;letter-spacing:0.5px">v1.4.55</span>
+  <h1>📋 인수인계 관리 [JC02]</h1><span style="font-size:10px;color:#64b5f6;background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:4px;font-weight:400;letter-spacing:0.5px">v1.4.56</span>
   <span class="badge" id="tbadge">0건</span>
   <span id="netbadge" onclick="showNetInfo()" style="font-size:11px;padding:2px 8px;border-radius:99px;cursor:pointer;color:#f87171" title="확인 중...">●</span>
   <div class="spacer"></div>

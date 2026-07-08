@@ -21,15 +21,17 @@ import (
 var initialDataJSON []byte
 
 type Record struct {
-	ID       int    `json:"id"`
-	Date     string `json:"date"`
-	Equip    string `json:"equip"`
-	Worker   string `json:"worker"`
-	Shift    string `json:"shift,omitempty"`
-	Category string `json:"category"`
-	Content  string `json:"content"`
-	Dong     string `json:"dong"`
-	Flag     bool   `json:"flag,omitempty"`
+	ID        int    `json:"id"`
+	Date      string `json:"date"`
+	Equip     string `json:"equip"`
+	Worker    string `json:"worker"`
+	Shift     string `json:"shift,omitempty"`
+	Category  string `json:"category"`
+	Content   string `json:"content"`
+	Dong      string `json:"dong"`
+	Flag      bool   `json:"flag,omitempty"`
+	StartTime string `json:"start,omitempty"`
+	EndTime   string `json:"end,omitempty"`
 }
 
 var dataFile string    // 네트워크 주 저장소 경로
@@ -353,17 +355,19 @@ func handleBind(w webview.WebView) {
 	// 즉시 바꾸고 바로 반환한 뒤, 실제 저장은 requestSave로 백그라운드에 맡긴다.
 	// 소유권 검사(Dong==myDong)는 lock 안 루프에서 하므로 상대 동 레코드는 여전히
 	// 거부된다(서버 최종 방어, 이제 변경과 원자적).
-	w.Bind("dbAdd", func(date, equip, worker, shift, category, content, dong string) string {
+	w.Bind("dbAdd", func(date, equip, worker, shift, category, content, dong, startTime, endTime string) string {
 		recMu.Lock()
 		added := Record{
-			ID:       nextID(records),
-			Date:     strings.TrimSpace(date),
-			Equip:    strings.TrimSpace(equip),
-			Worker:   strings.TrimSpace(worker),
-			Shift:    strings.TrimSpace(shift),
-			Category: strings.TrimSpace(category),
-			Content:  strings.TrimSpace(content),
-			Dong:     myDong, // 클라이언트가 보낸 dong은 무시 - 항상 내 동으로 생성
+			ID:        nextID(records),
+			Date:      strings.TrimSpace(date),
+			Equip:     strings.TrimSpace(equip),
+			Worker:    strings.TrimSpace(worker),
+			Shift:     strings.TrimSpace(shift),
+			Category:  strings.TrimSpace(category),
+			Content:   strings.TrimSpace(content),
+			Dong:      myDong, // 클라이언트가 보낸 dong은 무시 - 항상 내 동으로 생성
+			StartTime: strings.TrimSpace(startTime),
+			EndTime:   strings.TrimSpace(endTime),
 		}
 		records = append(records, added)
 		recMu.Unlock()
@@ -371,7 +375,7 @@ func handleBind(w webview.WebView) {
 		return toJSON(added)
 	})
 
-	w.Bind("dbUpdate", func(id int, date, equip, worker, shift, category, content, dong string) bool {
+	w.Bind("dbUpdate", func(id int, date, equip, worker, shift, category, content, dong, startTime, endTime string) bool {
 		recMu.Lock()
 		found := false
 		for i := range records {
@@ -382,6 +386,8 @@ func handleBind(w webview.WebView) {
 				records[i].Shift = strings.TrimSpace(shift)
 				records[i].Category = strings.TrimSpace(category)
 				records[i].Content = strings.TrimSpace(content)
+				records[i].StartTime = strings.TrimSpace(startTime)
+				records[i].EndTime = strings.TrimSpace(endTime)
 				// Dong은 내 동으로 고정 - 레코드를 다른 동으로 옮기는 것도 금지
 				found = true
 				break
@@ -635,7 +641,8 @@ select{padding:6px 8px;border:1px solid #cbd5e0;border-radius:6px;font-size:12px
 .frow.flagged{box-shadow:inset 3px 0 0 #e53e3e}
 .fc-dong{flex:0 0 44px;width:44px;padding-left:3px;padding-right:3px}
 .dong-badge{font-size:10px;color:#2d4a7a;background:#e8edf4;padding:2px 5px;border-radius:4px;font-weight:600}
-.fc-d{flex:0 0 58px;width:58px;color:#4a5568;white-space:nowrap;padding-left:4px;padding-right:4px}
+.fc-d{flex:0 0 58px;width:58px;color:#4a5568;white-space:nowrap;padding-left:4px;padding-right:4px;flex-direction:column;gap:1px}
+.fc-d .tm{font-size:9px;color:#a0aec0;line-height:1.2}
 .fc-e{flex:0 0 56px;width:56px;padding-left:3px;padding-right:3px}
 .fc-w{flex:0 0 68px;width:68px;color:#4a5568;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-left:4px;padding-right:4px}
 .fc-w .wk{width:100%;line-height:1.2;text-align:center}
@@ -703,6 +710,9 @@ select{padding:6px 8px;border:1px solid #cbd5e0;border-radius:6px;font-size:12px
 .fr input:focus,.fr select:focus,.fr textarea:focus{outline:none;border-color:#3b82f6;background:#fff}
 .fr textarea{height:110px;resize:vertical;line-height:1.6}
 .fg{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.time-pick{display:flex;align-items:center;gap:3px;font-size:12px;color:#4a5568}
+.time-pick select{padding:7px 4px;border:1px solid #cbd5e0;border-radius:6px;font-size:12px;font-family:'맑은 고딕',sans-serif;background:#f8fafc;width:56px}
+.time-pick select:focus{outline:none;border-color:#3b82f6;background:#fff}
 .mf{display:flex;justify-content:flex-end;gap:8px;margin-top:8px}
 .bc{padding:7px 16px;background:#f0f4f8;border:1px solid #cbd5e0;border-radius:6px;cursor:pointer;font-size:12px;font-family:'맑은 고딕',sans-serif}
 .bs{padding:7px 16px;background:#3b82f6;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-family:'맑은 고딕',sans-serif;font-weight:600}
@@ -721,7 +731,7 @@ mark{background:#fef08a;border-radius:2px}
 </head>
 <body>
 <div class="topbar">
-  <h1>📋 인수인계 관리 [JC02]</h1><span style="font-size:10px;color:#64b5f6;background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:4px;font-weight:400;letter-spacing:0.5px">v1.4.57</span>
+  <h1>📋 인수인계 관리 [JC02]</h1><span style="font-size:10px;color:#64b5f6;background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:4px;font-weight:400;letter-spacing:0.5px">v1.4.58</span>
   <span class="badge" id="tbadge">0건</span>
   <span id="netbadge" onclick="showNetInfo()" style="font-size:11px;padding:2px 8px;border-radius:99px;cursor:pointer;color:#f87171" title="확인 중...">●</span>
   <div class="spacer"></div>
@@ -799,6 +809,14 @@ mark{background:#fef08a;border-radius:2px}
         </select>
       </div>
       <div class="fr"><label>날짜</label><input type="date" id="fd"></div>
+    </div>
+    <div class="fg">
+      <div class="fr"><label>시작시간</label>
+        <div class="time-pick"><select id="fsh"></select>시<select id="fsm"></select>분</div>
+      </div>
+      <div class="fr"><label>종료시간</label>
+        <div class="time-pick"><select id="feh"></select>시<select id="fem"></select>분</div>
+      </div>
     </div>
     <div class="fg">
       <div class="fr"><label>설비</label><select id="fe"></select></div>
@@ -1023,6 +1041,18 @@ function fmtDate(ds){
   const y=ds.slice(2,4), m=parseInt(ds.slice(5,7)), d=parseInt(ds.slice(8,10));
   return y+'.'+m+'.'+d;
 }
+function timeCell(r){
+  if(!r.start&&!r.end) return '';
+  let h='';
+  if(r.start) h+='<div class="tm">'+r.start+'</div>';
+  if(r.end) h+='<div class="tm">~'+r.end+'</div>';
+  return h;
+}
+function timeOptions(max){
+  let s='<option value="">--</option>';
+  for(let i=0;i<max;i++){ const v=String(i).padStart(2,'0'); s+='<option value="'+v+'">'+v+'</option>'; }
+  return s;
+}
 
 async function init(){
   let netInfo=null;
@@ -1042,6 +1072,10 @@ async function init(){
 
   const t=new Date(); calY=t.getFullYear(); calM=t.getMonth()+1;
   document.getElementById('fD').value='JC02';
+  document.getElementById('fsh').innerHTML=timeOptions(24);
+  document.getElementById('fsm').innerHTML=timeOptions(60);
+  document.getElementById('feh').innerHTML=timeOptions(24);
+  document.getElementById('fem').innerHTML=timeOptions(60);
   updateEquipFilter();
   document.getElementById('fdong').addEventListener('change', updateEquipModal);
   updateEquipModal();
@@ -1162,7 +1196,7 @@ function rowHTML(r){
   return '<div class="frow'+(r.flag?' flagged':'')+(mine?'':' foreign')+shiftCls+'" id="R'+r.id+'" onclick="rowClick('+r.id+')" oncontextmenu="rowCtx(event,'+r.id+')">'
     +'<div class="fc fc-flag">'+flagBtn+'</div>'
     +'<div class="fc fc-dong"><span class="dong-badge">'+(r.dong||'JC01')+'</span></div>'
-    +'<div class="fc fc-d">'+fmtDate(r.date)+'</div>'
+    +'<div class="fc fc-d">'+fmtDate(r.date)+timeCell(r)+'</div>'
     +'<div class="fc fc-e"><span class="eb" style="background:'+bg+';color:'+fg+'">'+esc(r.equip)+'</span></div>'
     +workerCell(r.worker,r.shift)
     +'<div class="fc fc-c"><span class="chip c'+r.category.replace(/\s/g,'')+'">'+esc(r.category)+'</span></div>'
@@ -1356,6 +1390,12 @@ function openModal(rec){
   fdong.disabled = true;
   updateEquipModal();
   document.getElementById('fd').value=rec?rec.date:today();
+  const sp=(rec&&rec.start)?rec.start.split(':'):['',''];
+  const ep=(rec&&rec.end)?rec.end.split(':'):['',''];
+  document.getElementById('fsh').value=sp[0]||'';
+  document.getElementById('fsm').value=sp[1]||'';
+  document.getElementById('feh').value=ep[0]||'';
+  document.getElementById('fem').value=ep[1]||'';
   document.getElementById('fe').value=rec?rec.equip:'';
   document.getElementById('fw').value = rec ? rec.worker : (lastRecord ? lastRecord.worker : '');
   document.getElementById('fs').value = rec ? (rec.shift||'') : '';
@@ -1370,6 +1410,10 @@ function bgClick(e){if(e.target===document.getElementById('mbg'))closeModal();}
 async function save(){
   const dong=document.getElementById('fdong').value.trim();
   const date=document.getElementById('fd').value.trim();
+  const sh=document.getElementById('fsh').value, sm=document.getElementById('fsm').value;
+  const eh=document.getElementById('feh').value, em=document.getElementById('fem').value;
+  const startTime=(sh&&sm)?sh+':'+sm:'';
+  const endTime=(eh&&em)?eh+':'+em:'';
   const equip=document.getElementById('fe').value.trim();
   const worker=document.getElementById('fw').value.trim();
   const shift=document.getElementById('fs').value.trim();
@@ -1377,11 +1421,11 @@ async function save(){
   const content=document.getElementById('fct').value.trim();
   if(!date||!equip||!cat||!content){alert('필수 항목을 입력해주세요.');return;}
   if(editId!==null){
-    await dbUpdate(editId,date,equip,worker,shift,cat,content,dong);
+    await dbUpdate(editId,date,equip,worker,shift,cat,content,dong,startTime,endTime);
     const i=all.findIndex(r=>r.id===editId);
-    if(i>=0)all[i]={...all[i],id:editId,date,equip,worker,shift,category:cat,content,dong};
+    if(i>=0)all[i]={...all[i],id:editId,date,equip,worker,shift,category:cat,content,dong,start:startTime,end:endTime};
   }else{
-    const raw=await dbAdd(date,equip,worker,shift,cat,content,dong);
+    const raw=await dbAdd(date,equip,worker,shift,cat,content,dong,startTime,endTime);
     all.push(JSON.parse(raw));
   }
   closeModal();

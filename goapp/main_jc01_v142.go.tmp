@@ -660,6 +660,12 @@ select{padding:6px 8px;border:1px solid #cbd5e0;border-radius:6px;font-size:12px
 .right{display:flex;flex-direction:column;width:270px;flex-shrink:0;gap:8px}
 .memo-card{flex:1;min-height:260px;background:#fffaf0;border:1px solid #f6ad55;border-radius:10px;display:flex;flex-direction:column;overflow:hidden}
 .memo-hdr{background:#dd7c1e;color:#fff;padding:8px 12px;font-size:12px;font-weight:600}
+.leave-card{background:#fff;border:1px solid #6ee7b7;border-radius:10px;overflow:hidden}
+.leave-hdr{background:#059669;color:#fff;padding:8px 12px;font-size:12px;font-weight:600;text-align:center}
+.leave-grid{display:grid;grid-template-columns:max-content 1fr max-content 1fr;gap:1px;background:#e2e8f0}
+.lv-cell{background:#fff;font-size:12px;padding:6px 8px;min-height:30px;display:flex;align-items:center}
+.lv-lab{background:#f0fdf4;color:#065f46;font-weight:700;justify-content:center;padding:6px 14px}
+.lv-val{cursor:text;color:#2a4365}
 #memo-text{flex:1;width:100%;border:none;background:transparent;resize:none;padding:12px;font-family:'맑은 고딕',sans-serif;font-size:12px;line-height:1.6;outline:none;color:#5a4a3a}
 .memo-footer{padding:4px 12px 8px;font-size:10px;color:#c08a4a;text-align:right}
 .pm-col{display:flex;flex-direction:column;flex:0 0 auto;background:#fff;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden}
@@ -731,7 +737,7 @@ mark{background:#fef08a;border-radius:2px}
 </head>
 <body>
 <div class="topbar">
-  <h1>📋 인수인계 관리 [JC01]</h1><span style="font-size:10px;color:#64b5f6;background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:4px;font-weight:400;letter-spacing:0.5px">v1.4.60</span>
+  <h1>📋 인수인계 관리 [JC01]</h1><span style="font-size:10px;color:#64b5f6;background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:4px;font-weight:400;letter-spacing:0.5px">v1.4.61</span>
   <span class="badge" id="tbadge">0건</span>
   <span id="netbadge" onclick="showNetInfo()" style="font-size:11px;padding:2px 8px;border-radius:99px;cursor:pointer;color:#f87171" title="확인 중...">●</span>
   <div class="spacer"></div>
@@ -788,6 +794,15 @@ mark{background:#fef08a;border-radius:2px}
         <span>~</span>
         <span class="rin"><input type="text" id="re" placeholder="26/06/24" maxlength="8" inputmode="numeric" oninput="rangeType(this)" onchange="applyRange()"><input type="date" id="red" class="rpick" onchange="rangePick('re',this.value)"></span>
         <button onclick="clearRange()">해제</button>
+      </div>
+    </div>
+    <div class="leave-card">
+      <div class="leave-hdr">🗓 연차 사용 계획</div>
+      <div class="leave-grid">
+        <div class="lv-cell lv-lab">A</div><div class="lv-cell lv-val" contenteditable="true" data-k="A" oninput="saveLeaveCell(this)"></div>
+        <div class="lv-cell lv-lab">C</div><div class="lv-cell lv-val" contenteditable="true" data-k="C" oninput="saveLeaveCell(this)"></div>
+        <div class="lv-cell lv-lab">B</div><div class="lv-cell lv-val" contenteditable="true" data-k="B" oninput="saveLeaveCell(this)"></div>
+        <div class="lv-cell lv-lab">D</div><div class="lv-cell lv-val" contenteditable="true" data-k="D" oninput="saveLeaveCell(this)"></div>
       </div>
     </div>
     <div class="memo-card">
@@ -946,6 +961,23 @@ async function loadPmAll(){
   renderPmTable();
 }
 
+// ── 연차 사용 계획 (달력 밑, 메모 위) ─────────────────────
+// PM 체크리스트와 같은 방식(memoSave/memoLoad, 동별 파일 hk_leave_JC0x)으로
+// A/B/C/D 4칸의 내용만 저장한다.
+let leaveData={};
+function saveLeaveCell(el){
+  const k=el.getAttribute('data-k');
+  leaveData[k]=el.innerText;
+  memoSave('hk_leave_'+MY_DONG, JSON.stringify(leaveData));
+}
+async function loadLeaveAll(){
+  const raw=await memoLoad('hk_leave_'+MY_DONG);
+  try{ leaveData=raw?JSON.parse(raw):{}; }catch(e){ leaveData={}; }
+  document.querySelectorAll('.lv-val').forEach(el=>{
+    el.textContent=leaveData[el.getAttribute('data-k')]||'';
+  });
+}
+
 // ── 설비 다중선택 상태 ──────────────────────────────────
 let selectedEquips=new Set(); // 비어있으면 "전체"로 취급
 
@@ -1084,7 +1116,7 @@ async function init(){
   if(tw) tw.addEventListener('scroll',()=>{
     if(shown<fil.length && tw.scrollTop+tw.clientHeight>=tw.scrollHeight-300) renderMore();
   });
-  applyFilter(); renderCal(); loadMemo(); loadPmAll();
+  applyFilter(); renderCal(); loadMemo(); loadPmAll(); loadLeaveAll();
   scheduleMidnight();
 }
 

@@ -25,14 +25,14 @@ goapp/main_jc02_v142.go.tmp    JC02 소스 (정본)
 
 ## 🔨 빌드 & 버전
 
-현재 버전: **v1.4.56**
+현재 버전: **v1.4.61**
 
 ```bash
 export GOPATH=$HOME/go && export PATH=$PATH:/usr/local/go/bin
 cd goapp
 cp main_jc01_v142.go.tmp main.go && gofmt -w main.go
 GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
-  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.56.exe .
+  go build -mod=vendor -ldflags="-H windowsgui" -o 인수인계관리_JC01_v1.4.61.exe .
 rm -f main.go
 ```
 
@@ -43,41 +43,48 @@ rm -f main.go
 - `go vet`는 로컬(리눅스)에서 `syscall.NewLazyDLL`, `buildHTML`의 Sprintf(`%`)를
   오탐한다 — 노이즈. `GOOS=windows` 빌드가 통과하면 정상.
 
-## ⚠️ 두 소스는 대부분 동일, 13곳 + JC02 전용 기능 1개만 다르다
+## ⚠️ 두 소스는 대부분 동일, 13곳 + 동별 전용 기능 2개만 다르다
 
 확인은 `diff main_jc01_v142.go.tmp main_jc02_v142.go.tmp` 한 줄이면 된다.
 
-**공통 13곳** (JC01 기준 라인번호, v1.4.56 시점):
+**공통 13곳** (JC01 기준 라인번호, v1.4.61 시점):
 | 줄 | JC01 | JC02 |
 |----|------|------|
-| 307 | 주석 "JC01은 100000번대" | "JC02는 200000번대" |
-| 310 | `max := 100000` | `max := 200000` |
-| 312 | `r.ID < 200000` | `r.ID < 300000` |
-| 329 | `const myDong = "JC01"` | `= "JC02"` |
-| 470 | `...\1동\Pending Item&지속관리` | `...\CELL_MEE_..\P10 Cell Sorter` |
-| 481 | `"JC_1 Sorter 필요 Parts"` | `"JC_2 Sorter 필요 Parts2"` |
-| 690 | `[JC01]` (제목) | `[JC02]` |
-| 703-704 | `JC01 selected` | `JC02 selected` |
-| 763 | `<option value="JC02">` | `<option value="JC02" selected>` |
-| 835 | `const MY_DONG='JC01'` | `='JC02'` |
-| 844 | `memoSave('hk_memo',…)` | `memoSave('hk_memo_jc02',…)` |
-| 850 | `memoLoad('hk_memo')` | `memoLoad('hk_memo_jc02')` |
-| 1009 | `fD.value='JC01'` | `='JC02'` |
+| 309 | 주석 "JC01은 100000번대" | "JC02는 200000번대" |
+| 312 | `max := 100000` | `max := 200000` |
+| 314 | `r.ID < 200000` | `r.ID < 300000` |
+| 331 | `const myDong = "JC01"` | `= "JC02"` |
+| 480 | `...\1동\Pending Item&지속관리` | `...\CELL_MEE_..\P10 Cell Sorter` |
+| 491 | `"JC_1 Sorter 필요 Parts"` | `"JC_2 Sorter 필요 Parts2"` |
+| 740 | `[JC01]` (제목) | `[JC02]` |
+| 753-754 | `JC01 selected` | `JC02 selected` |
+| 823 | `<option value="JC02">` | `<option value="JC02" selected>` |
+| 903 | `const MY_DONG='JC01'` | `='JC02'` |
+| 912 | `memoSave('hk_memo',…)` | `memoSave('hk_memo_jc02',…)` |
+| 918 | `memoLoad('hk_memo')` | `memoLoad('hk_memo_jc02')` |
+| 1106 | `fD.value='JC01'` | `='JC02'` |
 
-**JC02 전용 기능 (v1.4.54~)**: "Part's 교체 이력" 버튼. JC02 diff의 순수 추가분
-(`451a`, `470c`의 `openHistoryFileImpl`, `566a`의 `.btn-history` CSS, `716a`의
-버튼, `1393a`의 `openHistoryFile()` JS). JC01엔 없다.
+**동별 전용 기능**: JC01엔 "💡 램프 시트" 버튼(v1.4.60, `openLampFileImpl`/
+`.btn-lamp`/`openLampFile()`), JC02엔 "🔧 Part's 교체 이력" 버튼(v1.4.54,
+`openHistoryFileImpl`/`.btn-history`/`openHistoryFile()`)이 각각 있다. 둘 다
+파트 요청 리스트 버튼(`openPartsFileImpl`)과 동일한 패턴(대상 폴더 내 파일명
+부분일치 검색 → `cmd /C start`로 열기)이고 서로의 파일엔 없다.
 
 > PM 체크리스트 저장 키(`'hk_pm_'+MY_DONG`)와 좌/우 분할(`PM_SPLIT`, JC02만 값
-> 존재하나 코드 문자열은 양쪽 동일)은 diff 아님.
+> 존재), 연차 사용 계획 저장 키(`'hk_leave_'+MY_DONG`)는 코드 문자열이 양쪽
+> 동일해 diff 아님.
 
 ## 🗂 데이터 모델 (Record)
 
 ```go
 type Record struct {
-    ID int; Date, Equip, Worker, Shift, Category, Content, Dong string; Flag bool
-}  // json: id/date/equip/worker/shift(omitempty)/content/category/dong/flag(omitempty)
+    ID int; Date, Equip, Worker, Shift, Category, Content, Dong string
+    Flag bool; StartTime, EndTime string
+}  // json: id/date/equip/worker/shift(omitempty)/content/category/dong/
+   //       flag(omitempty)/start(omitempty)/end(omitempty)
 ```
+- `StartTime`/`EndTime`: `"HH:MM"` 문자열, 둘 다 선택(비워도 됨), 순서 검증 없음
+  (종료가 시작보다 빨라도 그대로 저장). `dbAdd/dbUpdate`의 마지막 두 인자.
 - `ID`는 정수 (문자열 금지 — WebView2 바인딩 의존). JC01=100000번대(100001~199999),
   JC02=200000번대. `nextID()`는 자기 동 대역 안에서만 최댓값 탐색.
 - `Shift`: `"주"`/`"야"`/빈 문자열. 모달 `#fs`에서 선택. `workerCell(w,shift)`가
@@ -99,18 +106,18 @@ type Record struct {
 
 | 줄 | 함수 |
 |----|------|
-| 20 | `//go:embed` + `initialDataJSON` |
-| 44 `recMu` · 49 `saveSignal` | records 보호 / 저장 신호 |
-| 51 `getDataDir` · 62 `getNetworkDir` | 경로 |
-| 69 `readWithTimeout` · 99 `writeWithTimeout` | 타임아웃 IO |
-| 155 `migrateEquipNames` · 171 `migrateIDOffsets` | 마이그레이션 |
-| 190 `loadRecords` · 234 `saveRecords` | 데이터 로직 |
-| 244 `requestSave` · 254 `startFlusher` · 269 `flushOnce` | 백그라운드 저장 |
-| 309 `nextID(rs)` · 329 `myDong` | 채번 / 쓰기권한 동 |
-| 331 `handleBind` | WebView2 바인딩 (dbGetAll/dbAdd/dbUpdate/dbDelete/dbSetFlag, memoSave/memoLoad) |
-| 469 `openPartsFileImpl` · 501 `maximizeWindow` | |
-| 507 `main` | loadRecords→startFlusher→WebView2 |
-| 549 `buildHTML` | UI 전체 (HTML+CSS+JS) |
+| 23 | `type Record struct` |
+| 46 `recMu` · 51 `saveSignal` | records 보호 / 저장 신호 |
+| 53 `getDataDir` · 64 `getNetworkDir` | 경로 |
+| 71 `readWithTimeout` · 101 `writeWithTimeout` | 타임아웃 IO |
+| 157 `migrateEquipNames` · 173 `migrateIDOffsets` | 마이그레이션 |
+| 192 `loadRecords` · 236 `saveRecords` | 데이터 로직 |
+| 246 `requestSave` · 256 `startFlusher` · 271 `flushOnce` | 백그라운드 저장 |
+| 311 `nextID(rs)` · 331 `myDong` | 채번 / 쓰기권한 동 |
+| 333 `handleBind` | WebView2 바인딩 (dbGetAll/dbAdd/dbUpdate/dbDelete/dbSetFlag, memoSave/memoLoad) |
+| 479 `openPartsFileImpl` · 507 `openLampFileImpl`(JC01만) · 539 `maximizeWindow` | |
+| 545 `main` | loadRecords→startFlusher→WebView2 |
+| 587 `buildHTML` | UI 전체 (HTML+CSS+JS) |
 
 ## 🚫 현재 구현 상태 (한 줄 요약, 이유·이력 생략)
 
@@ -124,6 +131,9 @@ type Record struct {
 - 전체보기 닫기 버튼: `.vfclose` 클래스로 찾을 것(`closest('[style]')` 금지).
 - 달력 CSS 선언 순서: `.sat`/`.sun` → `.rng`(기간) → `.td2`(오늘) → `.sd`(선택, 항상 이김) → 근무조 배경 → `.foreign`.
 - 메인 목록 내용칸(`.fc-ct .pv`): 높이 제한 없음(세로로 무한정 늘어남). `max-height`/`overflow:hidden` 넣지 말 것.
+- 메인 목록 행/칸 구분선: `.frow` border-bottom·`.fc` border-right 모두 검정(`#000`).
+- 날짜 칸(`.fc-d`): 날짜 밑에 `.tm`(시작/종료 시간)을 세로로 이어붙임. 날짜와 같은
+  색·크기 상속(별도 회색/작은 폰트 지정 금지). 시간이 없으면 `.tm` 자체를 안 그림.
 - 자정 갱신: `scheduleMidnight()`가 매일 00:00:02에 `renderCal` 재호출.
 - 날짜 필터: `selDates`(Set), `save()` 후에도 유지.
 - 기간 필터: `.cal-range`의 `#rs`/`#re`(텍스트, `26/06/24` 형식) + `#rsd`/`#red`(아이콘
@@ -135,5 +145,12 @@ type Record struct {
   좌/우 설비 배분은 `PM_SPLIT[MY_DONG]`(JC02만 명시 배열: 좌=공통·#1~7·#31·#32·#99,
   우=#41·#51·#52·#60·#61·#71·#96)이 있으면 그대로, 없으면 목록 절반씩 자동 분할.
 - 근무자 셀: `workerCell(w,shift)`로 여러 줄+폰트 축소 렌더.
-- 근무조 필드: `dbAdd/dbUpdate(date,equip,worker,shift,category,content,dong)` 인자 순서 고정.
+- 근무조 필드: `dbAdd/dbUpdate(date,equip,worker,shift,category,content,dong,startTime,endTime)`
+  인자 순서 고정(마지막 두 개가 v1.4.58에서 추가된 시간 필드).
 - 근무조 행 배경: `shift-day`/`shift-night`, CSS 순서 `.sel`→`shift-*`→`.foreign`.
+- 새 항목 모달: 시작/종료 시간은 시(`fsh`/`feh`)·분(`fsm`/`fem`) select 각각
+  분리, `timeOptions()`로 옵션 채움. 값 조합은 `sh&&sm ? sh+':'+sm : ''`(시/분 중
+  하나만 있으면 빈 문자열 취급).
+- 연차 사용 계획: `.leave-card`(달력 밑, 메모 위) 안 `.leave-grid`(4열: 라벨|값|라벨|값,
+  A/C가 1행 B/D가 2행). PM 체크리스트와 같은 방식으로 `memoSave/memoLoad`,
+  키는 `'hk_leave_'+MY_DONG`, 값은 `{A,B,C,D}` JSON 한 덩어리.

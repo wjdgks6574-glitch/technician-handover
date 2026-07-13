@@ -455,6 +455,10 @@ func handleBind(w webview.WebView) {
 		return openPartsFileImpl()
 	})
 
+	w.Bind("openLampFile_go", func() string {
+		return openLampFileImpl()
+	})
+
 	// 메모 저장은 localStorage를 쓰면 SetHtml(NavigateToString)의 opaque
 	// origin 때문에 재시작 시 사라진다. 그래서 로컬 파일에 저장한다. key로
 	// 파일명을 분리(JC01=hk_memo / JC02=hk_memo_jc02)해 같은 PC에 두 exe를
@@ -485,6 +489,34 @@ func openPartsFileImpl() string {
 			continue
 		}
 		if strings.Contains(name, "JC_1 Sorter 필요 Parts") &&
+			(strings.HasSuffix(name, ".xlsx") || strings.HasSuffix(name, ".xls") || strings.HasSuffix(name, ".xlsb")) {
+			target = filepath.Join(dir, name)
+			break
+		}
+	}
+	if target == "" {
+		return "ERR:파일을 찾을 수 없습니다"
+	}
+	cmd := exec.Command("cmd", "/C", "start", "", target)
+	if err := cmd.Start(); err != nil {
+		return "ERR:파일 열기 실패 (" + err.Error() + ")"
+	}
+	return "OK:" + target
+}
+
+func openLampFileImpl() string {
+	dir := `\\172.23.11.175\ETC_JC_BergerHalm\1동\Pending Item&지속관리`
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return "ERR:폴더를 찾을 수 없습니다 (" + err.Error() + ")"
+	}
+	var target string
+	for _, e := range entries {
+		name := e.Name()
+		if strings.HasPrefix(name, "~$") {
+			continue
+		}
+		if strings.Contains(name, "Lamp 교체 Plan") &&
 			(strings.HasSuffix(name, ".xlsx") || strings.HasSuffix(name, ".xls") || strings.HasSuffix(name, ".xlsb")) {
 			target = filepath.Join(dir, name)
 			break
@@ -570,6 +602,7 @@ body{font-family:'맑은 고딕',sans-serif;background:#f0f4f8;color:#1a202c;fon
 .btn-new{background:#3b82f6;color:#fff}.btn-new:hover{background:#2563eb}
 .btn-csv{background:#059669;color:#fff;margin-left:4px}.btn-csv:hover{background:#047857}
 .btn-parts{background:#7c3aed;color:#fff;padding:5px 12px;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-family:'맑은 고딕',sans-serif;font-weight:600;white-space:nowrap}.btn-parts:hover{background:#6d28d9}
+.btn-lamp{background:#d97706;color:#fff;padding:5px 12px;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-family:'맑은 고딕',sans-serif;font-weight:600;white-space:nowrap}.btn-lamp:hover{background:#b45309}
 .main{display:flex;flex:1;overflow:hidden;gap:8px;padding:8px}
 .left{display:flex;flex-direction:column;flex:1;background:#fff;border-radius:10px;overflow:hidden;border:1px solid #e2e8f0}
 .searchbar{padding:10px 12px;border-bottom:1px solid #e2e8f0;display:flex;gap:8px;align-items:center;background:#f8fafc}
@@ -698,7 +731,7 @@ mark{background:#fef08a;border-radius:2px}
 </head>
 <body>
 <div class="topbar">
-  <h1>📋 인수인계 관리 [JC01]</h1><span style="font-size:10px;color:#64b5f6;background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:4px;font-weight:400;letter-spacing:0.5px">v1.4.59</span>
+  <h1>📋 인수인계 관리 [JC01]</h1><span style="font-size:10px;color:#64b5f6;background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:4px;font-weight:400;letter-spacing:0.5px">v1.4.60</span>
   <span class="badge" id="tbadge">0건</span>
   <span id="netbadge" onclick="showNetInfo()" style="font-size:11px;padding:2px 8px;border-radius:99px;cursor:pointer;color:#f87171" title="확인 중...">●</span>
   <div class="spacer"></div>
@@ -725,6 +758,7 @@ mark{background:#fef08a;border-radius:2px}
         <option>감소활동</option>
       </select>
       <button class="btn btn-parts" onclick="openPartsFile()">📋 파트 요청 리스트</button>
+      <button class="btn btn-lamp" onclick="openLampFile()">💡 램프 시트</button>
     </div>
     <div class="cntbar" id="cntbar"></div>
     <div class="tw">
@@ -1436,6 +1470,13 @@ function exportCSV(){
 
 async function openPartsFile(){
   const res=await openPartsFile_go();
+  if(res.startsWith('ERR:')){
+    alert('파일을 열 수 없습니다: '+res.slice(4));
+  }
+}
+
+async function openLampFile(){
+  const res=await openLampFile_go();
   if(res.startsWith('ERR:')){
     alert('파일을 열 수 없습니다: '+res.slice(4));
   }
